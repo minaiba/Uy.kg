@@ -90,9 +90,18 @@ export default function HomePage() {
       {/* Hero */}
       <section className="relative flex min-h-[600px] flex-col overflow-hidden lg:min-h-[85vh]">
         <div className="absolute inset-0">
-          {settings?.hero_image_url && (
+          {(settings as any)?.hero_video_url ? (
+            <video
+              src={(settings as any).hero_video_url}
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="h-full w-full object-cover"
+            />
+          ) : settings?.hero_image_url ? (
             <img src={settings.hero_image_url} alt="Hero" className="h-full w-full object-cover" />
-          )}
+          ) : null}
           <div className="absolute inset-0 bg-gradient-to-br from-gray-900/80 via-gray-900/60 to-primary-900/50" />
         </div>
 

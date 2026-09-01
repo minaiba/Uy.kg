@@ -6,7 +6,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const BOT_TOKEN = "8418470696:AAENJm0-3ytsBzWfSv5M0a4YSQRnKWMe_Y0";
+// Read token from environment variable — NEVER hardcode it
+const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || "";
+if (!BOT_TOKEN) {
+  console.error("TELEGRAM_BOT_TOKEN is not set in edge function secrets");
+}
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
@@ -20,11 +24,19 @@ async function sendMessage(chatId: number, text: string, keyboard?: any) {
     parse_mode: "HTML",
   };
   if (keyboard) body.reply_markup = keyboard;
-  await fetch(`${TELEGRAM_API}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  try {
+    const res = await fetch(`${TELEGRAM_API}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error("sendMessage failed:", res.status, errBody);
+    }
+  } catch (err) {
+    console.error("sendMessage error:", err);
+  }
 }
 
 async function setWebhook(url: string) {
@@ -47,6 +59,13 @@ const mainKeyboard = {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
+  }
+
+  if (!BOT_TOKEN) {
+    return new Response(
+      JSON.stringify({ error: "Bot token not configured" }),
+      { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 
   try {
@@ -117,7 +136,7 @@ Deno.serve(async (req: Request) => {
       if (update.callback_query) {
         const cb = update.callback_query;
         const chatId = cb.message?.chat?.id;
-        const data = cb.callback_query?.data || cb.data;
+        const data = cb.data;
 
         if (data === "catalog") {
           const { data: properties } = await supabase
@@ -228,6 +247,7 @@ Deno.serve(async (req: Request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
+    console.error("Telegram bot error:", err);
     return new Response(
       JSON.stringify({ error: err.message }),
       {

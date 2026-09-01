@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Home, Mail, Lock, User, Phone, ArrowLeft, Check } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
@@ -9,12 +9,20 @@ export default function AuthPage() {
   const { lang } = useApp();
   const { signIn, signUp, user, role } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [form, setForm] = useState({ fullName: '', phone: '', email: '', password: '', confirmPassword: '' });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const urlMode = searchParams.get('mode');
+    if (urlMode === 'register' || urlMode === 'login') {
+      setMode(urlMode);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (user && role) {

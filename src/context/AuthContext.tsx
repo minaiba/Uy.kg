@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchRole = useCallback(async (userId: string): Promise<UserRole | null> => {
+  const fetchRole = useCallback(async (userId: string): Promise<UserRole> => {
     try {
       const { data } = await supabase
         .from('user_profiles')
@@ -47,19 +47,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const r = await fetchRole(data.session.user.id);
         if (mounted) setRole(r);
       }
-      setLoading(false);
+      if (mounted) setLoading(false);
     });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    // Synchronous callback — no async to avoid Supabase deadlock
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
+
       if (newSession?.user) {
-        const r = await fetchRole(newSession.user.id);
-        setRole(r);
+        // Fire-and-forget role fetch — do NOT await inside the callback
+        fetchRole(newSession.user.id).then((r) => {
+          if (mounted) setRole(r);
+        });
       } else {
         setRole(null);
       }
-      setLoading(false);
+
+      if (event === 'SIGNED_OUT') {
+        setLoading(false);
+      }
     });
 
     return () => {
@@ -70,35 +77,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      console.error('Auth signIn error:', error);
-      return { error: error.message ?? null };
-    }
-    if (!data.user) {
-      console.error('Auth signIn: no user returned');
-      return { error: 'No user returned' };
-    }
+    if (error) return { error: error.message ?? null };
+    if (!data.user) return { error: 'No user returned' };
+
+    // Fetch role immediately so the redirect can happen without waiting for onAuthStateChange
+    const r = await fetchRole(data.user.id);
+    setRole(r);
+    setUser(data.user);
+    setSession(data.session);
     return { error: null };
-  }, []);
+  }, [fetchRole]);
 
   const signUp = useCallback(async (email: string, password: string, fullName: string, phone: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: { full_name: fullName, phone },
-      },
+      options: { data: { full_name: fullName, phone } },
     });
     if (error) return { error: error?.message ?? null };
+
+    // Auto-login after registration
     if (data.user) {
-      await supabase.auth.signInWithPassword({ email, password });
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) return { error: signInError.message ?? null };
+      if (signInData.user) {
+        const r = await fetchRole(signInData.user.id);
+        setRole(r);
+        setUser(signInData.user);
+        setSession(signInData.session);
+      }
     }
     return { error: null };
-  }, []);
+  }, [fetchRole]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setRole(null);
+    setUser(null);
+    setSession(null);
   }, []);
 
   return (
