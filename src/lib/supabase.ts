@@ -25,6 +25,7 @@ export type SiteSettings = {
   hero_title: Record<string, string>;
   hero_subtitle: Record<string, string>;
   hero_image_url: string | null;
+  hero_video_url: string | null;
   phone: string | null;
   email: string | null;
   address: Record<string, string>;
@@ -38,6 +39,7 @@ export type SiteSettings = {
   working_hours: Record<string, string>;
   about_stats: { icon: string; value: string; label: Record<string, string> }[] | null;
   about_features: Record<string, string[]> | null;
+  social_links: { platform: string; label: string; url: string; icon: string }[] | null;
   updated_at: string;
 };
 
@@ -105,6 +107,8 @@ export type TelegramSubscriber = {
   language_code: string | null;
   is_active: boolean;
   subscribed_at: string;
+  bot_language: string;
+  bot_state: string | null;
 };
 
 export type PropertyInquiry = {

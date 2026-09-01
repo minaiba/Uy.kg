@@ -1,4 +1,4 @@
-import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Navigate, NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 import { LayoutDashboard, Building2, FileText, Settings, Send, Inbox, LogOut, Home, Sun, Moon, X } from 'lucide-react';
@@ -13,7 +13,7 @@ export default function AdminLayout() {
 
   const handleSignOut = useCallback(async () => {
     await signOut();
-    navigate('/admin/login');
+    navigate('/auth');
   }, [signOut, navigate]);
 
   if (loading) {
@@ -24,7 +24,7 @@ export default function AdminLayout() {
     );
   }
 
-  if (!user) return <Navigate to="/admin/login" replace />;
+  if (!user) return <Navigate to="/auth" replace />;
 
   const menuItems = [
     { to: '/admin', icon: LayoutDashboard, label: t(lang, 'admin.dashboard'), end: true },
@@ -87,6 +87,13 @@ export default function AdminLayout() {
 
         {/* Bottom controls */}
         <div className="p-4 border-t border-gray-800 space-y-3">
+          <Link
+            to="/"
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors"
+          >
+            <Home className="w-4 h-4" />
+            {t(lang, 'admin.goHome')}
+          </Link>
           <div className="flex items-center justify-between">
             <button
               onClick={toggleTheme}
@@ -94,14 +101,6 @@ export default function AdminLayout() {
             >
               {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
             </button>
-            <a
-              href="/"
-              target="_blank"
-              className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-              title={t(lang, 'admin.backToSite')}
-            >
-              <Home className="w-5 h-5" />
-            </a>
             <button
               onClick={handleSignOut}
               className="p-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-900/20 transition-colors"
@@ -130,12 +129,13 @@ export default function AdminLayout() {
             <LayoutDashboard className="w-5 h-5" />
           </button>
           <span className="font-display font-bold text-gray-900 dark:text-white">{settings?.site_name || 'Admin'}</span>
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          <Link
+            to="/"
+            className="p-2 rounded-lg text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+            title={t(lang, 'admin.goHome')}
           >
-            {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-          </button>
+            <Home className="w-5 h-5" />
+          </Link>
         </div>
 
         <div className="p-4 md:p-8">

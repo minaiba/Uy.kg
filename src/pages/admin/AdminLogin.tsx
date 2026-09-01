@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
@@ -6,13 +6,19 @@ import { Lock, Mail, Home, ArrowLeft } from 'lucide-react';
 import { t } from '@/lib/i18n';
 
 export default function AdminLogin() {
-  const { user, loading, signIn } = useAuth();
+  const { user, role, loading, signIn } = useAuth();
   const { lang } = useApp();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (user && role) {
+      navigate(role === 'admin' ? '/admin' : '/dashboard', { replace: true });
+    }
+  }, [user, role, navigate]);
 
   if (loading) {
     return (
@@ -22,7 +28,7 @@ export default function AdminLogin() {
     );
   }
 
-  if (user) return <Navigate to="/admin" replace />;
+  if (user && role) return <Navigate to={role === 'admin' ? '/admin' : '/dashboard'} replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,8 +38,6 @@ export default function AdminLogin() {
     if (error) {
       setError(error);
       setSubmitting(false);
-    } else {
-      navigate('/admin');
     }
   };
 

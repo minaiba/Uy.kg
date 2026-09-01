@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Home, Mail, Lock, User, Phone, ArrowLeft, Check } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -7,7 +7,7 @@ import { t } from '@/lib/i18n';
 
 export default function AuthPage() {
   const { lang } = useApp();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user, role } = useAuth();
   const navigate = useNavigate();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -15,6 +15,12 @@ export default function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (user && role) {
+      navigate(role === 'admin' ? '/admin' : '/dashboard', { replace: true });
+    }
+  }, [user, role, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,8 +43,6 @@ export default function AuthPage() {
         setError(error);
       } else {
         setSuccess(t(lang, 'auth.registerSuccess'));
-        setMode('login');
-        setForm({ fullName: '', phone: '', email: form.email, password: '', confirmPassword: '' });
       }
     } else {
       setSubmitting(true);
@@ -46,8 +50,6 @@ export default function AuthPage() {
       setSubmitting(false);
       if (error) {
         setError(error);
-      } else {
-        navigate('/admin');
       }
     }
   };

@@ -7,7 +7,7 @@ import { LANGS, type Lang, type CurrencyCode, CURRENCIES, t, getTranslatedValue 
 
 export default function Header() {
   const { theme, toggleTheme, lang, setLang, currency, setCurrency, settings, menuPages } = useApp();
-  const { user, signOut } = useAuth();
+  const { user, role, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
@@ -169,11 +169,11 @@ export default function Header() {
             {user ? (
               <div className="flex items-center gap-0.5">
                 <Link
-                  to="/admin"
+                  to={role === 'admin' ? '/admin' : '/dashboard'}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-all shadow-lg shadow-primary-600/20"
                 >
-                  <LayoutDashboard className="w-4 h-4" />
-                  {t(lang, 'admin.dashboard')}
+                  {role === 'admin' ? <LayoutDashboard className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                  {role === 'admin' ? t(lang, 'admin.dashboard') : t(lang, 'auth.profile')}
                 </Link>
                 <button
                   onClick={handleSignOut}
@@ -184,13 +184,21 @@ export default function Header() {
                 </button>
               </div>
             ) : (
-              <Link
-                to="/auth"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-all shadow-lg shadow-primary-600/20"
-              >
-                <User className="w-4 h-4" />
-                {t(lang, 'auth.login')}
-              </Link>
+              <div className="flex items-center gap-1">
+                <Link
+                  to="/auth?mode=login"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+                >
+                  <User className="w-4 h-4" />
+                  {t(lang, 'auth.login')}
+                </Link>
+                <Link
+                  to="/auth?mode=register"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-all shadow-lg shadow-primary-600/20"
+                >
+                  {t(lang, 'auth.register')}
+                </Link>
+              </div>
             )}
           </div>
 
@@ -302,12 +310,12 @@ export default function Header() {
               {user ? (
                 <div className="flex flex-col gap-1 pt-2 border-t border-gray-200 dark:border-gray-700 mt-2">
                   <Link
-                    to="/admin"
+                    to={role === 'admin' ? '/admin' : '/dashboard'}
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-colors"
                   >
-                    <LayoutDashboard className="w-4 h-4" />
-                    {t(lang, 'admin.dashboard')}
+                    {role === 'admin' ? <LayoutDashboard className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                    {role === 'admin' ? t(lang, 'admin.dashboard') : t(lang, 'auth.profile')}
                   </Link>
                   <button
                     onClick={handleSignOut}
@@ -318,14 +326,23 @@ export default function Header() {
                   </button>
                 </div>
               ) : (
-                <Link
-                  to="/auth"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-colors"
-                >
-                  <User className="w-4 h-4" />
-                  {t(lang, 'auth.login')}
-                </Link>
+                <div className="flex flex-col gap-1 pt-2 border-t border-gray-200 dark:border-gray-700 mt-2">
+                  <Link
+                    to="/auth?mode=login"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <User className="w-4 h-4" />
+                    {t(lang, 'auth.login')}
+                  </Link>
+                  <Link
+                    to="/auth?mode=register"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-colors"
+                  >
+                    {t(lang, 'auth.register')}
+                  </Link>
+                </div>
               )}
             </div>
           </nav>

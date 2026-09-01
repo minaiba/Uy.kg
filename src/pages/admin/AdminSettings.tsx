@@ -9,6 +9,19 @@ function emptyML(): ML { return { ru: '', en: '', kg: '' }; }
 
 type Stat = { icon: string; value: string; label: Record<Lang, string> };
 type Features = Record<Lang, string[]>;
+type SocialLink = { platform: string; label: string; url: string; icon: string };
+
+const SOCIAL_PLATFORMS = [
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'telegram', label: 'Telegram' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'twitter', label: 'Twitter / X' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'website', label: 'Website' },
+];
 
 const ICON_OPTIONS = [
   { value: 'award', label: 'Award' },
@@ -81,6 +94,7 @@ export default function AdminSettings() {
     hero_title: emptyML() as ML,
     hero_subtitle: emptyML() as ML,
     hero_image_url: '',
+    hero_video_url: '',
     phone: '',
     email: '',
     address: emptyML() as ML,
@@ -96,6 +110,7 @@ export default function AdminSettings() {
 
   const [stats, setStats] = useState<Stat[]>([]);
   const [features, setFeatures] = useState<Features>({ ru: [], en: [], kg: [] });
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
 
   // Load settings into form — only when settings data actually changes
   useEffect(() => {
@@ -107,6 +122,7 @@ export default function AdminSettings() {
         hero_title: (settings.hero_title as ML) || emptyML(),
         hero_subtitle: (settings.hero_subtitle as ML) || emptyML(),
         hero_image_url: settings.hero_image_url || '',
+        hero_video_url: (settings as any).hero_video_url || '',
         phone: settings.phone || '',
         email: settings.email || '',
         address: (settings.address as ML) || emptyML(),
@@ -136,6 +152,10 @@ export default function AdminSettings() {
           en: Array.isArray(rawFeatures.en) ? rawFeatures.en : [],
           kg: Array.isArray(rawFeatures.kg) ? rawFeatures.kg : [],
         });
+      }
+      const rawSocial = (settings as any).social_links;
+      if (Array.isArray(rawSocial)) {
+        setSocialLinks(rawSocial);
       }
       initialLoadRef.current = true;
       setDirty(false);
@@ -176,6 +196,7 @@ export default function AdminSettings() {
       hero_title: form.hero_title,
       hero_subtitle: form.hero_subtitle,
       hero_image_url: form.hero_image_url || null,
+      hero_video_url: form.hero_video_url || null,
       phone: form.phone || null,
       email: form.email || null,
       address: form.address,
@@ -189,6 +210,7 @@ export default function AdminSettings() {
       working_hours: form.working_hours,
       about_stats: stats,
       about_features: features,
+      social_links: socialLinks,
     };
     try {
       if (settings?.id) {
@@ -209,7 +231,7 @@ export default function AdminSettings() {
     }
   }, [form, stats, features, settings, refreshSettings, lang]);
 
-  const handleUpload = useCallback(async (file: File, field: 'logo' | 'hero') => {
+  const handleUpload = useCallback(async (file: File, field: 'logo' | 'hero' | 'hero_video') => {
     setUploading(true);
     const ext = file.name.split('.').pop();
     const fileName = `${field}-${Date.now()}.${ext}`;
@@ -218,10 +240,24 @@ export default function AdminSettings() {
       const { data: urlData } = supabase.storage.from('site-assets').getPublicUrl(fileName);
       const url = urlData.publicUrl;
       if (field === 'logo') setForm((prev) => ({ ...prev, logo_url: url }));
-      else setForm((prev) => ({ ...prev, hero_image_url: url }));
+      else if (field === 'hero') setForm((prev) => ({ ...prev, hero_image_url: url }));
+      else setForm((prev) => ({ ...prev, hero_video_url: url }));
       setDirty(true);
     }
     setUploading(false);
+  }, []);
+
+  const addSocialLink = useCallback(() => {
+    setSocialLinks((prev) => [...prev, { platform: 'instagram', label: 'Instagram', url: '', icon: 'instagram' }]);
+    setDirty(true);
+  }, []);
+  const updateSocialLink = useCallback((i: number, key: keyof SocialLink, val: string) => {
+    setSocialLinks((prev) => prev.map((s, idx) => (idx === i ? { ...s, [key]: val, icon: key === 'platform' ? val : s.icon } : s)));
+    setDirty(true);
+  }, []);
+  const removeSocialLink = useCallback((i: number) => {
+    setSocialLinks((prev) => prev.filter((_, idx) => idx !== i));
+    setDirty(true);
   }, []);
 
   const addStat = useCallback(() => {
@@ -346,6 +382,24 @@ export default function AdminSettings() {
             </label>
             <input type="text" value={form.hero_image_url} onChange={(e) => updateField('hero_image_url', e.target.value)} placeholder="URL" className={`mt-2 ${inputClass}`} />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{lang === 'ru' ? 'Видео для баннера' : lang === 'en' ? 'Banner video' : 'Баннер видео'}</label>
+            {form.hero_video_url && (
+              <div className="relative group mb-2">
+                <video src={form.hero_video_url} className="w-full h-32 object-cover rounded-lg" muted />
+                <button onClick={() => updateField('hero_video_url', '')} className="absolute top-2 right-2 p-1 rounded bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            <label className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium cursor-pointer transition-colors">
+              {uploading ? <div className="w-4 h-4 border-2 border-gray-400/30 border-t-gray-600 rounded-full animate-spin" /> : <Upload className="w-4 h-4" />}
+              {lang === 'ru' ? 'Загрузить видео' : lang === 'en' ? 'Upload video' : 'Видео жүктөө'}
+              <input type="file" accept="video/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], 'hero_video')} />
+            </label>
+            <input type="text" value={form.hero_video_url} onChange={(e) => updateField('hero_video_url', e.target.value)} placeholder="URL" className={`mt-2 ${inputClass}`} />
+          </div>
         </div>
 
         {/* Contact */}
@@ -357,13 +411,43 @@ export default function AdminSettings() {
           <MLInput label={t(lang, 'admin.workingHours')} value={form.working_hours} onChange={(v) => updateML('working_hours', v)} />
         </div>
 
-        {/* Social */}
+        {/* Social links — dynamic */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 space-y-5 shadow-sm">
-          <h3 className="font-display text-lg font-bold text-gray-900 dark:text-white">{t(lang, 'footer.followUs')}</h3>
-          <Field label={t(lang, 'admin.whatsapp')}><input type="text" value={form.whatsapp} onChange={(e) => updateField('whatsapp', e.target.value)} placeholder="+996555123456" className={inputClass} /></Field>
-          <Field label={t(lang, 'admin.instagram')}><input type="text" value={form.instagram} onChange={(e) => updateField('instagram', e.target.value)} placeholder="username" className={inputClass} /></Field>
-          <Field label={t(lang, 'admin.facebook')}><input type="text" value={form.facebook} onChange={(e) => updateField('facebook', e.target.value)} placeholder="username" className={inputClass} /></Field>
-          <Field label={t(lang, 'admin.telegramLink')}><input type="text" value={form.telegram} onChange={(e) => updateField('telegram', e.target.value)} placeholder="bot_username" className={inputClass} /></Field>
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-lg font-bold text-gray-900 dark:text-white">{t(lang, 'footer.followUs')}</h3>
+            <button onClick={addSocialLink} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 text-sm font-medium hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors">
+              <Plus className="w-4 h-4" /> {t(lang, 'admin.add')}
+            </button>
+          </div>
+          {socialLinks.length === 0 ? (
+            <p className="text-center text-gray-400 py-4 text-sm">{lang === 'ru' ? 'Нет соцсетей' : lang === 'en' ? 'No social links' : 'Социалдык шилтеме жок'}</p>
+          ) : (
+            <div className="space-y-3">
+              {socialLinks.map((social, i) => (
+                <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-gray-500">#{i + 1}</span>
+                    <button onClick={() => removeSocialLink(i)} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label={lang === 'ru' ? 'Платформа' : lang === 'en' ? 'Platform' : 'Платформа'}>
+                      <select value={social.platform} onChange={(e) => updateSocialLink(i, 'platform', e.target.value)} className={inputClass}>
+                        {SOCIAL_PLATFORMS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                      </select>
+                    </Field>
+                    <Field label={lang === 'ru' ? 'Название' : lang === 'en' ? 'Label' : 'Аталышы'}>
+                      <input type="text" value={social.label} onChange={(e) => updateSocialLink(i, 'label', e.target.value)} className={inputClass} />
+                    </Field>
+                  </div>
+                  <Field label="URL">
+                    <input type="text" value={social.url} onChange={(e) => updateSocialLink(i, 'url', e.target.value)} placeholder="https://..." className={inputClass} />
+                  </Field>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* About text & footer */}
