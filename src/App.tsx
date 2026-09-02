@@ -20,6 +20,7 @@ const AdminPropertyEdit = lazy(() => import('@/pages/admin/AdminPropertyEdit'));
 const AdminPages = lazy(() => import('@/pages/admin/AdminPages'));
 const AdminPageEdit = lazy(() => import('@/pages/admin/AdminPageEdit'));
 const AdminSettings = lazy(() => import('@/pages/admin/AdminSettings'));
+const AdminHeroSlides = lazy(() => import('@/pages/admin/AdminHeroSlides'));
 const AdminTelegram = lazy(() => import('@/pages/admin/AdminTelegram'));
 const AdminInquiries = lazy(() => import('@/pages/admin/AdminInquiries'));
 
@@ -46,10 +47,12 @@ function App() {
           <Route path="/properties/:id" element={<PropertyDetailPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/auth" element={<AuthPage />} />
-          <Route path="/dashboard" element={<UserDashboard />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/page/:slug" element={<DynamicPage />} />
         </Route>
+
+        {/* User dashboard — standalone, no public Header/Footer */}
+        <Route path="/dashboard" element={<UserDashboard />} />
 
         {/* Admin routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
@@ -62,6 +65,7 @@ function App() {
           <Route path="pages/new" element={<AdminPageEdit />} />
           <Route path="pages/:id" element={<AdminPageEdit />} />
           <Route path="settings" element={<AdminSettings />} />
+          <Route path="hero-slides" element={<AdminHeroSlides />} />
           <Route path="telegram" element={<AdminTelegram />} />
           <Route path="inquiries" element={<AdminInquiries />} />
         </Route>

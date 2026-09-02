@@ -5,6 +5,7 @@ import { useApp } from '@/context/AppContext';
 import { supabase, type Property, type Page } from '@/lib/supabase';
 import { t, getTranslatedValue } from '@/lib/i18n';
 import PropertyCard from '@/components/public/PropertyCard';
+import HeroSlider from '@/components/public/HeroSlider';
 
 export default function HomePage() {
   const { lang, settings } = useApp();
@@ -87,66 +88,20 @@ export default function HomePage() {
 
   return (
     <div>
-      {/* Hero */}
-      <section className="relative flex min-h-[600px] flex-col overflow-hidden lg:min-h-[85vh]">
-        <div className="absolute inset-0">
-          {(settings as any)?.hero_video_url ? (
-            <video
-              src={(settings as any).hero_video_url}
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="h-full w-full object-cover"
-            />
-          ) : settings?.hero_image_url ? (
-            <img src={settings.hero_image_url} alt="Hero" className="h-full w-full object-cover" />
-          ) : null}
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-900/80 via-gray-900/60 to-primary-900/50" />
-        </div>
+      {/* Hero Slider */}
+      <HeroSlider />
 
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-12 md:pt-36 md:pb-16">
-          <div className="max-w-3xl">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-md animate-fade-in-up">
-              <span className="h-2 w-2 rounded-full bg-primary-400 animate-pulse" />
-              {settings?.site_name || 'Estate Premium'}
-            </div>
-            <h1 className="mb-6 font-display text-4xl font-bold leading-tight text-white animate-fade-in-up md:text-5xl lg:text-6xl" style={{ animationDelay: '0.1s', opacity: 0 }}>
-              {getTranslatedValue(settings?.hero_title, lang)}
-            </h1>
-            <p className="mb-8 max-w-2xl text-lg leading-relaxed text-gray-200 animate-fade-in-up md:text-xl" style={{ animationDelay: '0.2s', opacity: 0 }}>
-              {getTranslatedValue(settings?.hero_subtitle, lang)}
-            </p>
-            <div className="flex flex-wrap gap-4 animate-fade-in-up" style={{ animationDelay: '0.3s', opacity: 0 }}>
-              <Link
-                to="/properties?type=sale"
-                className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-7 py-4 font-semibold text-white shadow-lg shadow-primary-600/30 transition-all hover:bg-primary-700 hover:shadow-xl hover:shadow-primary-600/40 hover:scale-105"
-              >
-                {t(lang, 'nav.buy')}
-                <ArrowRight className="h-5 w-5" />
-              </Link>
-              <Link
-                to="/properties?type=rent"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-7 py-4 font-semibold text-white backdrop-blur-md transition-all hover:bg-white/20 hover:scale-105"
-              >
-                {t(lang, 'nav.rent')}
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats bar */}
-        <div className="relative z-10 border-t border-white/20 bg-white/10 backdrop-blur-md">
-          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 md:py-8">
-            <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-              {stats.map((stat, i) => (
-                <div key={i} className="text-center">
-                  <stat.icon className="mx-auto mb-2 h-6 w-6 text-primary-400" />
-                  <div className="text-2xl font-bold text-white">{stat.value}</div>
-                  <div className="text-xs text-gray-300">{stat.label}</div>
-                </div>
-              ))}
-            </div>
+      {/* Stats bar */}
+      <section className="relative border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 md:py-8">
+          <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+            {stats.map((stat, i) => (
+              <div key={i} className="text-center">
+                <stat.icon className="mx-auto mb-2 h-6 w-6 text-primary-600 dark:text-primary-400" />
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">{stat.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

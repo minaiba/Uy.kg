@@ -56,17 +56,22 @@ export default function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo + Site Name */}
           <Link to="/" className="flex items-center gap-1 group flex-shrink-0">
-            {settings?.logo_url ? (
-              <img
-                src={settings.logo_url}
-                alt={settings.site_name || 'Estate'}
-                className="h-12 w-auto object-contain transition-transform group-hover:scale-105"
-              />
-            ) : (
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/30 group-hover:scale-105 transition-transform">
-                <Home className="w-6 h-6 text-white" />
-              </div>
-            )}
+            {(() => {
+              const logo = theme === 'dark' && settings?.logo_dark_url
+                ? settings.logo_dark_url
+                : settings?.logo_url;
+              return logo ? (
+                <img
+                  src={logo}
+                  alt={settings.site_name || 'Estate'}
+                  className="h-12 w-auto object-contain transition-transform group-hover:scale-105"
+                />
+              ) : (
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/30 group-hover:scale-105 transition-transform">
+                  <Home className="w-6 h-6 text-white" />
+                </div>
+              );
+            })()}
             {settings?.show_site_name !== false && (
               <span className="font-display text-xl font-extrabold tracking-tight text-gray-900 dark:text-white whitespace-nowrap">
                 {settings?.site_name || 'Estate Premium'}

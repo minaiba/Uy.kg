@@ -1,7 +1,7 @@
 import { Navigate, NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
-import { LayoutDashboard, Building2, FileText, Settings, Send, Inbox, LogOut, Home, Sun, Moon, X } from 'lucide-react';
+import { LayoutDashboard, Building2, FileText, Settings, Send, Inbox, LogOut, Home, Sun, Moon, X, GalleryVerticalEnd } from 'lucide-react';
 import { t } from '@/lib/i18n';
 import { useState, useCallback } from 'react';
 
@@ -29,6 +29,7 @@ export default function AdminLayout() {
   const menuItems = [
     { to: '/admin', icon: LayoutDashboard, label: t(lang, 'admin.dashboard'), end: true },
     { to: '/admin/properties', icon: Building2, label: t(lang, 'admin.properties') },
+    { to: '/admin/hero-slides', icon: GalleryVerticalEnd, label: lang === 'ru' ? 'Баннер' : lang === 'en' ? 'Hero slides' : 'Баннер' },
     { to: '/admin/pages', icon: FileText, label: t(lang, 'admin.pages') },
     { to: '/admin/inquiries', icon: Inbox, label: t(lang, 'admin.inquiries') },
     { to: '/admin/telegram', icon: Send, label: t(lang, 'admin.telegram') },
@@ -46,13 +47,16 @@ export default function AdminLayout() {
         {/* Brand */}
         <div className="p-6 border-b border-gray-800">
           <div className="flex items-center gap-3">
-            {settings?.logo_url ? (
-              <img src={settings.logo_url} alt="Logo" className="h-10 w-auto object-contain" />
-            ) : (
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/30">
-                <Home className="w-5 h-5 text-white" />
-              </div>
-            )}
+            {(() => {
+              const logo = settings?.logo_dark_url || settings?.logo_url;
+              return logo ? (
+                <img src={logo} alt="Logo" className="h-10 w-auto object-contain" />
+              ) : (
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/30">
+                  <Home className="w-5 h-5 text-white" />
+                </div>
+              );
+            })()}
             <div className="flex-1 min-w-0">
               <div className="font-display text-lg font-bold text-white truncate">{settings?.site_name || 'Estate'}</div>
               <div className="text-xs text-gray-500">Admin Panel</div>

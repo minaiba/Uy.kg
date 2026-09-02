@@ -90,6 +90,7 @@ export default function AdminSettings() {
   const [form, setForm] = useState({
     site_name: '',
     logo_url: '',
+    logo_dark_url: '',
     show_site_name: true,
     hero_title: emptyML() as ML,
     hero_subtitle: emptyML() as ML,
@@ -118,6 +119,7 @@ export default function AdminSettings() {
       const newForm = {
         site_name: settings.site_name || '',
         logo_url: settings.logo_url || '',
+        logo_dark_url: (settings as any).logo_dark_url || '',
         show_site_name: settings.show_site_name !== false,
         hero_title: (settings.hero_title as ML) || emptyML(),
         hero_subtitle: (settings.hero_subtitle as ML) || emptyML(),
@@ -192,6 +194,7 @@ export default function AdminSettings() {
     const payload = {
       site_name: form.site_name,
       logo_url: form.logo_url || null,
+      logo_dark_url: form.logo_dark_url || null,
       show_site_name: form.show_site_name,
       hero_title: form.hero_title,
       hero_subtitle: form.hero_subtitle,
@@ -231,7 +234,7 @@ export default function AdminSettings() {
     }
   }, [form, stats, features, settings, refreshSettings, lang]);
 
-  const handleUpload = useCallback(async (file: File, field: 'logo' | 'hero' | 'hero_video') => {
+  const handleUpload = useCallback(async (file: File, field: 'logo' | 'logo_dark' | 'hero' | 'hero_video') => {
     setUploading(true);
     const ext = file.name.split('.').pop();
     const fileName = `${field}-${Date.now()}.${ext}`;
@@ -240,6 +243,7 @@ export default function AdminSettings() {
       const { data: urlData } = supabase.storage.from('site-assets').getPublicUrl(fileName);
       const url = urlData.publicUrl;
       if (field === 'logo') setForm((prev) => ({ ...prev, logo_url: url }));
+      else if (field === 'logo_dark') setForm((prev) => ({ ...prev, logo_dark_url: url }));
       else if (field === 'hero') setForm((prev) => ({ ...prev, hero_image_url: url }));
       else setForm((prev) => ({ ...prev, hero_video_url: url }));
       setDirty(true);
@@ -350,6 +354,31 @@ export default function AdminSettings() {
               <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], 'logo')} />
             </label>
             <input type="text" value={form.logo_url} onChange={(e) => updateField('logo_url', e.target.value)} placeholder="URL" className={`mt-2 ${inputClass}`} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              {lang === 'ru' ? 'Логотип (тёмная тема)' : lang === 'en' ? 'Logo (Dark Theme)' : 'Логотип (караңгы тема)'}
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              {lang === 'ru' ? 'Отображается при выборе тёмной темы' : lang === 'en' ? 'Shown when dark theme is active' : 'Караңгы тема тандалганда көрсөтүлөт'}
+            </p>
+            {form.logo_dark_url ? (
+              <div className="relative group mb-2">
+                <div className="h-20 rounded-lg bg-gray-900 dark:bg-black p-2 border border-gray-700 flex items-center justify-center">
+                  <img src={form.logo_dark_url} alt="Dark Logo" className="h-full object-contain" />
+                </div>
+                <button onClick={() => updateField('logo_dark_url', '')} className="absolute top-1 right-1 p-1 rounded bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ) : null}
+            <label className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium cursor-pointer transition-colors">
+              {uploading ? <div className="w-4 h-4 border-2 border-gray-400/30 border-t-gray-600 rounded-full animate-spin" /> : <Upload className="w-4 h-4" />}
+              {t(lang, 'admin.uploadImage')}
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], 'logo_dark')} />
+            </label>
+            <input type="text" value={form.logo_dark_url} onChange={(e) => updateField('logo_dark_url', e.target.value)} placeholder="URL" className={`mt-2 ${inputClass}`} />
           </div>
 
           <Field label={t(lang, 'admin.defaultCurrency')}>

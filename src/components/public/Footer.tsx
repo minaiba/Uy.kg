@@ -38,13 +38,16 @@ export default function Footer() {
           {/* Brand */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              {settings?.logo_url ? (
-                <img src={settings.logo_url} alt={settings.site_name || 'Estate'} className="h-12 w-auto object-contain" />
-              ) : (
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/30">
-                  <Home className="w-6 h-6 text-white" />
-                </div>
-              )}
+              {(() => {
+                const logo = settings?.logo_dark_url || settings?.logo_url;
+                return logo ? (
+                  <img src={logo} alt={settings.site_name || 'Estate'} className="h-12 w-auto object-contain" />
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/30">
+                    <Home className="w-6 h-6 text-white" />
+                  </div>
+                );
+              })()}
               {settings?.show_site_name !== false && (
                 <span className="font-display text-xl font-extrabold tracking-tight text-white">
                   {settings?.site_name || 'Estate Premium'}

@@ -21,6 +21,7 @@ export type SiteSettings = {
   id: string;
   site_name: string;
   logo_url: string | null;
+  logo_dark_url: string | null;
   show_site_name: boolean;
   hero_title: Record<string, string>;
   hero_subtitle: Record<string, string>;
@@ -119,4 +120,19 @@ export type PropertyInquiry = {
   email: string | null;
   message: string | null;
   created_at: string;
+};
+
+export type HeroSlide = {
+  id: string;
+  title: Record<string, string>;
+  subtitle: Record<string, string>;
+  description: Record<string, string>;
+  media_url: string | null;
+  media_type: 'image' | 'video';
+  button_text: Record<string, string> | null;
+  button_link: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 };
