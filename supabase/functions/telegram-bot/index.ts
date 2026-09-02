@@ -610,10 +610,12 @@ Deno.serve(async (req: Request) => {
 
   try {
     const url = new URL(req.url);
-    const path = url.pathname.replace("/functions/v1/telegram-bot", "");
+    const pathname = url.pathname;
+    const isSetupWebhook = pathname.endsWith("/setup-webhook");
+    const isBroadcast = pathname.endsWith("/broadcast");
 
     // Setup webhook
-    if (path === "/setup-webhook" && req.method === "POST") {
+    if (isSetupWebhook && req.method === "POST") {
       const webhookUrl = `${supabaseUrl}/functions/v1/telegram-bot`;
       const result = await fetch(`${TELEGRAM_API}/setWebhook`, {
         method: "POST",
@@ -627,7 +629,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Broadcast message
-    if (path === "/broadcast" && req.method === "POST") {
+    if (isBroadcast && req.method === "POST") {
       const { message } = await req.json();
       if (!message) {
         return new Response(JSON.stringify({ error: "Message required" }), {
