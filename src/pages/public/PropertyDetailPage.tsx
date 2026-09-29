@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bed, Bath, Maximize, MapPin, Calendar, Building, Layers, Phone, Mail, MessageCircle, Check, Home, Share2, Lock } from 'lucide-react';
+import { ArrowLeft, Bed, Bath, Maximize, MapPin, Calendar, Building, Layers, Phone, Mail, MessageCircle, Check, Home, Share2, Lock, Eye } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { supabase, type Property, type PropertyImage } from '@/lib/supabase';
+import { supabase, type Property, type PropertyImage, type PropertyPrivate } from '@/lib/supabase';
 import { t, getTranslatedValue, formatPrice, type CurrencyCode } from '@/lib/i18n';
 import { get2gisSearchLink, get2gisCoordLink, buildAddressQuery } from '@/lib/2gis';
 import PropertyCard from '@/components/public/PropertyCard';
@@ -22,6 +22,7 @@ export default function PropertyDetailPage() {
   const [showInquiry, setShowInquiry] = useState(false);
   const [inquiryForm, setInquiryForm] = useState({ name: '', phone: '', email: '', message: '' });
   const [inquirySent, setInquirySent] = useState(false);
+  const [privateData, setPrivateData] = useState<PropertyPrivate | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -33,6 +34,12 @@ export default function PropertyDetailPage() {
 
       const { data: imgs } = await supabase.from('property_images').select('*').eq('property_id', id).order('sort_order', { ascending: true });
       setImages((imgs as PropertyImage[]) || []);
+
+      // Load private author-only fields (RLS ensures only author gets data)
+      if (user) {
+        const { data: priv } = await supabase.from('property_private').select('*').eq('property_id', id).maybeSingle();
+        if (priv) setPrivateData(priv as PropertyPrivate);
+      }
 
       if (prop) {
         const { data: sim } = await supabase
@@ -99,6 +106,8 @@ export default function PropertyDetailPage() {
     property.year_built != null && { icon: Calendar, label: t(lang, 'property.yearBuilt'), value: property.year_built },
     property.building_type && { icon: Building, label: t(lang, 'admin.propertyType'), value: property.building_type },
   ].filter(Boolean) as { icon: any; label: string; value: any }[];
+
+  const isAuthor = user && property.created_by && user.id === property.created_by;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -359,6 +368,52 @@ export default function PropertyDetailPage() {
                   </div>
                 )}
               </div>
+
+              {/* Private author-only fields */}
+              {isAuthor && privateData && (
+                <div className="bg-amber-50 dark:bg-amber-900/10 rounded-2xl p-6 border border-amber-200 dark:border-amber-800 space-y-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <h3 className="font-semibold text-amber-900 dark:text-amber-200 text-sm">
+                      {lang === 'ru' ? 'Приватные поля' : lang === 'en' ? 'Private fields' : 'Жеке талаалар'}
+                    </h3>
+                  </div>
+                  {privateData.admin_comment && (
+                    <div>
+                      <div className="text-xs text-amber-700 dark:text-amber-500 mb-1">
+                        {lang === 'ru' ? 'Админский комментарий' : lang === 'en' ? 'Admin comment' : 'Админ комментарий'}
+                      </div>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap bg-white dark:bg-gray-800 rounded-lg p-2 border border-amber-100 dark:border-amber-800">
+                        {privateData.admin_comment}
+                      </p>
+                    </div>
+                  )}
+                  {privateData.owner_phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      <div>
+                        <div className="text-xs text-amber-700 dark:text-amber-500">
+                          {lang === 'ru' ? 'Телефон собственника' : lang === 'en' ? 'Owner phone' : 'Ээсинин телефону'}
+                        </div>
+                        <a href={`tel:${privateData.owner_phone}`} className="text-sm text-gray-700 dark:text-gray-300 hover:text-primary-600">
+                          {privateData.owner_phone}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {privateData.hand_price && (
+                    <div className="flex items-center gap-2">
+                      <Eye className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      <div>
+                        <div className="text-xs text-amber-700 dark:text-amber-500">
+                          {lang === 'ru' ? 'Цена на руки' : lang === 'en' ? 'Hand price' : 'Кол баасы'}
+                        </div>
+                        <div className="text-sm text-gray-700 dark:text-gray-300">{privateData.hand_price}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

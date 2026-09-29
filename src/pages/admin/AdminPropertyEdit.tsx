@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Save, Plus, Trash2, Upload, Star, X, MapPin } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, Upload, Star, X, MapPin, Lock } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { supabase, type Property, type PropertyImage } from '@/lib/supabase';
+import { supabase, type Property, type PropertyImage, type PropertyPrivate } from '@/lib/supabase';
 import { t, LANGS, type Lang, type CurrencyCode, CURRENCIES } from '@/lib/i18n';
 import MapPicker from '@/components/common/MapPicker';
 import { get2gisSearchLink, buildAddressQuery } from '@/lib/2gis';
@@ -89,7 +89,11 @@ export default function AdminPropertyEdit() {
     main_image_url: '',
     latitude: null as number | null,
     longitude: null as number | null,
+    admin_comment: '',
+    owner_phone: '',
+    hand_price: '',
   });
+  const [privateLoaded, setPrivateLoaded] = useState(false);
 
   const [featuresText, setFeaturesText] = useState('');
   const [images, setImages] = useState<PropertyImage[]>([]);
@@ -131,6 +135,13 @@ export default function AdminPropertyEdit() {
         }
         const { data: imgs } = await supabase.from('property_images').select('*').eq('property_id', id).order('sort_order', { ascending: true });
         setImages((imgs as PropertyImage[]) || []);
+        // Load private author-only fields
+        const { data: priv } = await supabase.from('property_private').select('*').eq('property_id', id).maybeSingle();
+        if (priv) {
+          const pp = priv as PropertyPrivate;
+          setForm((prev) => ({ ...prev, admin_comment: pp.admin_comment || '', owner_phone: pp.owner_phone || '', hand_price: pp.hand_price || '' }));
+        }
+        setPrivateLoaded(true);
       })();
     }
   }, [id, isNew]);
@@ -218,6 +229,27 @@ export default function AdminPropertyEdit() {
     // Save pending gallery image
     if (newImageUrl && propertyId) {
       await supabase.from('property_images').insert({ property_id: propertyId, image_url: newImageUrl, sort_order: images.length });
+    }
+
+    // Save private author-only fields
+    if (propertyId) {
+      const privPayload = {
+        property_id: propertyId,
+        admin_comment: form.admin_comment || '',
+        owner_phone: form.owner_phone || '',
+        hand_price: form.hand_price || '',
+        updated_at: new Date().toISOString(),
+      };
+      if (privateLoaded) {
+        await supabase.from('property_private').update(privPayload).eq('property_id', propertyId);
+      } else {
+        const { data: existing } = await supabase.from('property_private').select('id').eq('property_id', propertyId).maybeSingle();
+        if (existing) {
+          await supabase.from('property_private').update(privPayload).eq('property_id', propertyId);
+        } else {
+          await supabase.from('property_private').insert({ ...privPayload, created_by: (await supabase.auth.getUser()).data.user?.id });
+        }
+      }
     }
 
     setSaving(false);
@@ -450,6 +482,46 @@ export default function AdminPropertyEdit() {
                 <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${form.is_published ? 'translate-x-6' : ''}`} />
               </button>
             </label>
+          </div>
+
+          {/* Private author-only fields */}
+          <div className="bg-amber-50 dark:bg-amber-900/10 rounded-2xl p-6 border border-amber-200 dark:border-amber-800 space-y-4">
+            <div className="flex items-center gap-2">
+              <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <h3 className="font-semibold text-amber-900 dark:text-amber-200 text-sm">
+                {lang === 'ru' ? 'Приватные поля (только для автора)' : lang === 'en' ? 'Private fields (author only)' : 'Жеке талаалар (автор гана)'}
+              </h3>
+            </div>
+            <p className="text-xs text-amber-700 dark:text-amber-500">
+              {lang === 'ru' ? 'Эти поля видны только вам. Другие пользователи их не увидят.' : lang === 'en' ? 'These fields are visible only to you. Other users will not see them.' : 'Бул талаалар силге гана көрүнөт. Башка колдонуучулар көрбөйт.'}
+            </p>
+            <Field label={lang === 'ru' ? 'Админский комментарий' : lang === 'en' ? 'Admin comment' : 'Админ комментарий'}>
+              <textarea
+                value={form.admin_comment}
+                onChange={(e) => setForm({ ...form, admin_comment: e.target.value })}
+                rows={3}
+                className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm resize-none transition-all"
+                placeholder={lang === 'ru' ? 'Внутренний комментарий...' : lang === 'en' ? 'Internal note...' : 'Ички эскертүү...'}
+              />
+            </Field>
+            <Field label={lang === 'ru' ? 'Номер телефона собственника' : lang === 'en' ? 'Owner phone number' : 'Ээсинин телефон номери'}>
+              <input
+                type="text"
+                value={form.owner_phone}
+                onChange={(e) => setForm({ ...form, owner_phone: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm transition-all"
+                placeholder="+996..."
+              />
+            </Field>
+            <Field label={lang === 'ru' ? 'Цена на руки' : lang === 'en' ? 'Hand price' : 'Кол баасы'}>
+              <input
+                type="text"
+                value={form.hand_price}
+                onChange={(e) => setForm({ ...form, hand_price: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm transition-all"
+                placeholder={lang === 'ru' ? 'Фактическая цена...' : lang === 'en' ? 'Actual price...' : 'Чыныгы баа...'}
+              />
+            </Field>
           </div>
         </div>
       </div>

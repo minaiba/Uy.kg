@@ -86,6 +86,18 @@ export type Property = {
   is_featured: boolean;
   is_published: boolean;
   main_image_url: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PropertyPrivate = {
+  id: string;
+  property_id: string;
+  created_by: string;
+  admin_comment: string;
+  owner_phone: string;
+  hand_price: string;
   created_at: string;
   updated_at: string;
 };
