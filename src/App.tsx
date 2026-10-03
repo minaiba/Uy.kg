@@ -23,6 +23,8 @@ const AdminSettings = lazy(() => import('@/pages/admin/AdminSettings'));
 const AdminHeroSlides = lazy(() => import('@/pages/admin/AdminHeroSlides'));
 const AdminTelegram = lazy(() => import('@/pages/admin/AdminTelegram'));
 const AdminInquiries = lazy(() => import('@/pages/admin/AdminInquiries'));
+const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'));
+const AdminModeration = lazy(() => import('@/pages/admin/AdminModeration'));
 
 function LoadingScreen() {
   return (
@@ -53,11 +55,14 @@ function App() {
 
         {/* User dashboard — standalone, no public Header/Footer */}
         <Route path="/dashboard" element={<UserDashboard />} />
+        <Route path="/dashboard/edit/:id" element={<AdminPropertyEdit />} />
+        <Route path="/dashboard/edit/new" element={<AdminPropertyEdit />} />
 
         {/* Admin routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
+          <Route path="users" element={<AdminUsers />} />
           <Route path="properties" element={<AdminProperties />} />
           <Route path="properties/new" element={<AdminPropertyEdit />} />
           <Route path="properties/:id" element={<AdminPropertyEdit />} />
@@ -68,6 +73,7 @@ function App() {
           <Route path="hero-slides" element={<AdminHeroSlides />} />
           <Route path="telegram" element={<AdminTelegram />} />
           <Route path="inquiries" element={<AdminInquiries />} />
+          <Route path="moderation" element={<AdminModeration />} />
         </Route>
       </Routes>
     </Suspense>

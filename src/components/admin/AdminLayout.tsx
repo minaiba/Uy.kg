@@ -1,12 +1,12 @@
 import { Navigate, NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
-import { LayoutDashboard, Building2, FileText, Settings, Send, Inbox, LogOut, Home, Sun, Moon, X, GalleryVerticalEnd } from 'lucide-react';
+import { LayoutDashboard, Building2, FileText, Settings, Send, Inbox, LogOut, Home, Sun, Moon, X, GalleryVerticalEnd, Users, ShieldCheck, BarChart3 } from 'lucide-react';
 import { t } from '@/lib/i18n';
 import { useState, useCallback } from 'react';
 
 export default function AdminLayout() {
-  const { user, loading, signOut } = useAuth();
+  const { user, role, loading, signOut } = useAuth();
   const { lang, theme, toggleTheme, settings } = useApp();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -25,10 +25,13 @@ export default function AdminLayout() {
   }
 
   if (!user) return <Navigate to="/auth" replace />;
+  if (role !== 'admin') return <Navigate to="/dashboard" replace />;
 
   const menuItems = [
     { to: '/admin', icon: LayoutDashboard, label: t(lang, 'admin.dashboard'), end: true },
+    { to: '/admin/users', icon: Users, label: lang === 'ru' ? 'Пользователи' : lang === 'en' ? 'Users' : 'Колдонуучулар' },
     { to: '/admin/properties', icon: Building2, label: t(lang, 'admin.properties') },
+    { to: '/admin/moderation', icon: ShieldCheck, label: lang === 'ru' ? 'Модерация' : lang === 'en' ? 'Moderation' : 'Модерация' },
     { to: '/admin/hero-slides', icon: GalleryVerticalEnd, label: lang === 'ru' ? 'Баннер' : lang === 'en' ? 'Hero slides' : 'Баннер' },
     { to: '/admin/pages', icon: FileText, label: t(lang, 'admin.pages') },
     { to: '/admin/inquiries', icon: Inbox, label: t(lang, 'admin.inquiries') },

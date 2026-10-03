@@ -66,8 +66,9 @@ export type Property = {
   price: number;
   currency: string;
   listing_type: 'sale' | 'rent';
-  property_type: 'house' | 'apartment' | 'commercial' | 'land';
+  property_type: 'house' | 'apartment' | 'commercial' | 'land' | 'dacha' | 'cottage' | 'townhouse' | 'office' | 'warehouse' | 'industrial';
   status: 'active' | 'sold' | 'rented' | 'draft';
+  moderation_status: 'pending' | 'approved' | 'rejected';
   location: Record<string, any>;
   address: string | null;
   city: string | null;
@@ -98,6 +99,18 @@ export type PropertyPrivate = {
   admin_comment: string;
   owner_phone: string;
   hand_price: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UserProfile = {
+  id: string;
+  full_name: string | null;
+  phone: string | null;
+  email: string | null;
+  role: 'admin' | 'user' | 'agent';
+  is_blocked: boolean;
+  can_publish: boolean;
   created_at: string;
   updated_at: string;
 };

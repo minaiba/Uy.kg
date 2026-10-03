@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Plus, Trash2, Upload, Star, X, MapPin, Lock } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { supabase, type Property, type PropertyImage, type PropertyPrivate } from '@/lib/supabase';
@@ -58,6 +58,7 @@ export default function AdminPropertyEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { lang } = useApp();
+  const [searchParams] = useSearchParams();
   const isNew = !id || id === 'new';
 
   const [saving, setSaving] = useState(false);
@@ -70,7 +71,7 @@ export default function AdminPropertyEdit() {
     price: 0,
     currency: 'KGS' as CurrencyCode,
     listing_type: 'sale' as 'sale' | 'rent',
-    property_type: 'apartment' as 'house' | 'apartment' | 'commercial' | 'land',
+    property_type: 'apartment' as 'house' | 'apartment' | 'commercial' | 'land' | 'dacha' | 'cottage' | 'townhouse' | 'office' | 'warehouse' | 'industrial',
     status: 'active' as 'active' | 'sold' | 'rented' | 'draft',
     address: '',
     city: '',
@@ -86,6 +87,7 @@ export default function AdminPropertyEdit() {
     features: [] as string[],
     is_featured: false,
     is_published: true,
+    moderation_status: 'approved' as 'pending' | 'approved' | 'rejected',
     main_image_url: '',
     latitude: null as number | null,
     longitude: null as number | null,
@@ -100,12 +102,17 @@ export default function AdminPropertyEdit() {
   const [newImageUrl, setNewImageUrl] = useState('');
 
   useEffect(() => {
-    if (!isNew && id) {
+    if (isNew) {
+      const type = searchParams.get('type');
+      if (type) setForm((prev) => ({ ...prev, property_type: type as any }));
+      return;
+    }
+    if (id) {
       (async () => {
         const { data: prop } = await supabase.from('properties').select('*').eq('id', id).maybeSingle();
         if (prop) {
           const p = prop as Property;
-          setForm({
+          setForm((prev) => ({
             title: (p.title as MultiLangField) || emptyMultiLang(),
             description: (p.description as MultiLangField) || emptyMultiLang(),
             price: p.price,
@@ -127,10 +134,14 @@ export default function AdminPropertyEdit() {
             features: Array.isArray(p.features) ? p.features : [],
             is_featured: p.is_featured,
             is_published: p.is_published,
+            moderation_status: (p as any).moderation_status || 'approved',
             main_image_url: p.main_image_url || '',
             latitude: p.latitude,
             longitude: p.longitude,
-          });
+            admin_comment: prev.admin_comment,
+            owner_phone: prev.owner_phone,
+            hand_price: prev.hand_price,
+          }));
           setFeaturesText((Array.isArray(p.features) ? p.features : []).join(', '));
         }
         const { data: imgs } = await supabase.from('property_images').select('*').eq('property_id', id).order('sort_order', { ascending: true });
@@ -211,6 +222,7 @@ export default function AdminPropertyEdit() {
       features,
       is_featured: form.is_featured,
       is_published: form.is_published,
+      moderation_status: form.moderation_status,
       main_image_url: form.main_image_url || null,
       latitude: form.latitude,
       longitude: form.longitude,
@@ -256,7 +268,8 @@ export default function AdminPropertyEdit() {
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
     if (isNew && propertyId) {
-      navigate(`/admin/properties/${propertyId}`);
+      const fromDashboard = window.location.pathname.startsWith('/dashboard/');
+      navigate(fromDashboard ? `/dashboard/edit/${propertyId}` : `/admin/properties/${propertyId}`);
     }
   };
 
@@ -264,7 +277,7 @@ export default function AdminPropertyEdit() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Link to="/admin/properties" className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+          <Link to={window.location.pathname.startsWith('/dashboard/') ? '/dashboard' : '/admin/properties'} className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <h1 className="font-display text-2xl font-bold text-gray-900 dark:text-white">
@@ -317,6 +330,12 @@ export default function AdminPropertyEdit() {
                   <option value="apartment">{t(lang, 'property.apartment')}</option>
                   <option value="commercial">{t(lang, 'property.commercial')}</option>
                   <option value="land">{t(lang, 'property.land')}</option>
+                  <option value="dacha">{lang === 'ru' ? 'Дача' : lang === 'en' ? 'Dacha' : 'Дача'}</option>
+                  <option value="cottage">{lang === 'ru' ? 'Коттедж' : lang === 'en' ? 'Cottage' : 'Коттедж'}</option>
+                  <option value="townhouse">{lang === 'ru' ? 'Таунхаус' : lang === 'en' ? 'Townhouse' : 'Таунхаус'}</option>
+                  <option value="office">{lang === 'ru' ? 'Офис' : lang === 'en' ? 'Office' : 'Офис'}</option>
+                  <option value="warehouse">{lang === 'ru' ? 'Склад' : lang === 'en' ? 'Warehouse' : 'Склад'}</option>
+                  <option value="industrial">{lang === 'ru' ? 'Производство' : lang === 'en' ? 'Industrial' : 'Өндүрүш'}</option>
                 </select>
               </Field>
               <Field label={t(lang, 'admin.status')}>
@@ -482,6 +501,13 @@ export default function AdminPropertyEdit() {
                 <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${form.is_published ? 'translate-x-6' : ''}`} />
               </button>
             </label>
+            <Field label={lang === 'ru' ? 'Статус модерации' : lang === 'en' ? 'Moderation status' : 'Модерация статусу'}>
+              <select value={form.moderation_status} onChange={(e) => setForm({ ...form, moderation_status: e.target.value as any })} className={inputClass}>
+                <option value="approved">{lang === 'ru' ? 'Одобрено' : lang === 'en' ? 'Approved' : 'Бекитилди'}</option>
+                <option value="pending">{lang === 'ru' ? 'На модерации' : lang === 'en' ? 'Pending' : 'Күтүүдө'}</option>
+                <option value="rejected">{lang === 'ru' ? 'Отклонено' : lang === 'en' ? 'Rejected' : 'Реджект'}</option>
+              </select>
+            </Field>
           </div>
 
           {/* Private author-only fields */}
