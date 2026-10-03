@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
-import { User, Mail, Phone, Save, Home, LogOut, Check, AlertCircle, Heart, MessageSquare, Calendar, Building2, Plus, Pencil, Trash2, Eye, EyeOff, FileText, Settings, Lock } from 'lucide-react';
+import { User, Mail, Phone, Save, Home, LogOut, Check, AlertCircle, Heart, MessageSquare, Calendar, Building2, Plus, Pencil, Trash2, Eye, EyeOff, FileText, Settings, Lock, KeyRound } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
-import { supabase, type Property, type PropertyPrivate } from '@/lib/supabase';
+import { supabase, type Property } from '@/lib/supabase';
 import { t, getTranslatedValue, formatPrice, type CurrencyCode } from '@/lib/i18n';
 
 type Tab = 'listings' | 'add' | 'drafts' | 'favorites' | 'messages' | 'profile';
@@ -13,7 +13,7 @@ export default function UserDashboard() {
   const { user, role, canPublish, loading, signOut } = useAuth();
   const navigate = useNavigate();
 
-  const [tab, setTab] = useState<Tab>('listings');
+  const [tab, setTab] = useState<Tab>('favorites');
   const [profile, setProfile] = useState({ full_name: '', phone: '', email: '' });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -22,6 +22,9 @@ export default function UserDashboard() {
   const [drafts, setDrafts] = useState<Property[]>([]);
   const [favorites, setFavorites] = useState<Property[]>([]);
   const [inquiries, setInquiries] = useState<any[]>([]);
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwSaved, setPwSaved] = useState(false);
 
   const loadProfile = useCallback(async () => {
     if (!user) return;
@@ -86,6 +89,28 @@ export default function UserDashboard() {
     navigate('/');
   };
 
+  const handleChangePassword = async () => {
+    setError(null);
+    if (pwForm.next !== pwForm.confirm) {
+      setError(lang === 'ru' ? 'Пароли не совпадают' : lang === 'en' ? 'Passwords do not match' : 'Сырсөздөр дал келбейт');
+      return;
+    }
+    if (pwForm.next.length < 6) {
+      setError(lang === 'ru' ? 'Пароль должен быть не менее 6 символов' : lang === 'en' ? 'Password must be at least 6 characters' : 'Сырсөз кеминде 6 символ болушу керек');
+      return;
+    }
+    setPwSaving(true);
+    const { error: err } = await supabase.auth.updateUser({ password: pwForm.next });
+    setPwSaving(false);
+    if (err) {
+      setError(err.message);
+    } else {
+      setPwSaved(true);
+      setPwForm({ current: '', next: '', confirm: '' });
+      setTimeout(() => setPwSaved(false), 3000);
+    }
+  };
+
   const togglePublish = async (prop: Property) => {
     const newPublished = !prop.is_published;
     await supabase.from('properties').update({ is_published: newPublished, updated_at: new Date().toISOString() }).eq('id', prop.id);
@@ -107,10 +132,14 @@ export default function UserDashboard() {
 
   const inputClass = "w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all";
 
+  const hasPublishAccess = canPublish || role === 'admin';
+
   const tabs: { key: Tab; icon: any; label: string }[] = [
-    { key: 'listings', icon: Building2, label: lang === 'ru' ? 'Мои объявления' : lang === 'en' ? 'My listings' : 'Менин жарнамаларым' },
-    { key: 'add', icon: Plus, label: lang === 'ru' ? 'Добавить объект' : lang === 'en' ? 'Add property' : 'Объект кошуу' },
-    { key: 'drafts', icon: FileText, label: lang === 'ru' ? 'Черновики' : lang === 'en' ? 'Drafts' : 'Даректер' },
+    ...(hasPublishAccess ? [
+      { key: 'listings' as Tab, icon: Building2, label: lang === 'ru' ? 'Мои объявления' : lang === 'en' ? 'My listings' : 'Менин жарнамаларым' },
+      { key: 'add' as Tab, icon: Plus, label: lang === 'ru' ? 'Добавить объект' : lang === 'en' ? 'Add property' : 'Объект кошуу' },
+      { key: 'drafts' as Tab, icon: FileText, label: lang === 'ru' ? 'Черновики' : lang === 'en' ? 'Drafts' : 'Даректер' },
+    ] : []),
     { key: 'favorites', icon: Heart, label: lang === 'ru' ? 'Избранное' : lang === 'en' ? 'Favorites' : 'Тандалмалар' },
     { key: 'messages', icon: MessageSquare, label: lang === 'ru' ? 'Сообщения' : lang === 'en' ? 'Messages' : 'Билдирүүлөр' },
     { key: 'profile', icon: Settings, label: lang === 'ru' ? 'Настройки' : lang === 'en' ? 'Settings' : 'Орнотуулар' },
@@ -211,7 +240,7 @@ export default function UserDashboard() {
         </div>
 
         {/* My listings */}
-        {tab === 'listings' && (
+        {hasPublishAccess && tab === 'listings' && (
           <div className="space-y-3">
             {listings.length === 0 ? (
               <div className="bg-white dark:bg-gray-900 rounded-2xl p-12 border border-gray-100 dark:border-gray-800 text-center">
@@ -228,10 +257,9 @@ export default function UserDashboard() {
         )}
 
         {/* Add property */}
-        {tab === 'add' && (
+        {hasPublishAccess && tab === 'add' && (
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 border border-gray-100 dark:border-gray-800 text-center">
-            {canPublish || role === 'admin' ? (
-              <>
+            <>
                 <Plus className="w-12 h-12 mx-auto mb-3 text-primary-500" />
                 <h2 className="font-display text-xl font-bold text-gray-900 dark:text-white mb-2">
                   {lang === 'ru' ? 'Добавить новый объект' : lang === 'en' ? 'Add new property' : 'Жаңы объект кошуу'}
@@ -262,27 +290,12 @@ export default function UserDashboard() {
                     </Link>
                   ))}
                 </div>
-              </>
-            ) : (
-              <>
-                <Lock className="w-12 h-12 mx-auto mb-3 text-amber-500" />
-                <h2 className="font-display text-xl font-bold text-gray-900 dark:text-white mb-2">
-                  {lang === 'ru' ? 'Нет прав на публикацию' : lang === 'en' ? 'No publishing access' : 'Жариялоо укугу жок'}
-                </h2>
-                <p className="text-gray-500 text-sm max-w-md mx-auto">
-                  {lang === 'ru'
-                    ? 'Администратор ещё не выдал вам разрешение на публикацию объявлений. Ожидайте подтверждения.'
-                    : lang === 'en'
-                    ? 'The administrator has not yet granted you permission to publish listings. Please wait for approval.'
-                    : 'Администратор сизге жариялоо укугун берген жок. Бекитүүнү күтө туруңуз.'}
-                </p>
-              </>
-            )}
+            </>
           </div>
         )}
 
         {/* Drafts */}
-        {tab === 'drafts' && (
+        {hasPublishAccess && tab === 'drafts' && (
           <div className="space-y-3">
             {drafts.length === 0 ? (
               <div className="bg-white dark:bg-gray-900 rounded-2xl p-12 border border-gray-100 dark:border-gray-800 text-center">
@@ -370,6 +383,7 @@ export default function UserDashboard() {
 
         {/* Profile settings */}
         {tab === 'profile' && (
+          <>
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm">
             <h2 className="font-display text-xl font-bold text-gray-900 dark:text-white mb-6">
               {lang === 'ru' ? 'Личные данные' : lang === 'en' ? 'Personal info' : 'Жеке маалымат'}
@@ -412,6 +426,47 @@ export default function UserDashboard() {
               </button>
             </div>
           </div>
+
+          {/* Change password */}
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm mt-6">
+            <h2 className="font-display text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-primary-600" />
+              {t(lang, 'auth.changePassword')}
+            </h2>
+            {pwSaved && (
+              <div className="mb-4 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm rounded-xl p-3 border border-green-200 dark:border-green-800 flex items-center gap-2">
+                <Check className="w-4 h-4" /> {t(lang, 'auth.passwordUpdated')}
+              </div>
+            )}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t(lang, 'auth.currentPassword')}</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input type="password" value={pwForm.current} onChange={(e) => setPwForm({ ...pwForm, current: e.target.value })} className={inputClass} placeholder="••••••••" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t(lang, 'auth.newPassword')}</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input type="password" value={pwForm.next} onChange={(e) => setPwForm({ ...pwForm, next: e.target.value })} className={inputClass} placeholder="••••••••" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t(lang, 'auth.confirmPassword')}</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input type="password" value={pwForm.confirm} onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })} className={inputClass} placeholder="••••••••" />
+                </div>
+              </div>
+              <button onClick={handleChangePassword} disabled={pwSaving} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm transition-all disabled:opacity-50 shadow-lg shadow-primary-600/20">
+                {pwSaving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <KeyRound className="w-4 h-4" />}
+                {t(lang, 'auth.changePassword')}
+              </button>
+            </div>
+          </div>
+          </>
         )}
       </div>
     </div>

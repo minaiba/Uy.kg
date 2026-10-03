@@ -11,6 +11,7 @@ const AboutPage = lazy(() => import('@/pages/public/AboutPage'));
 const DynamicPage = lazy(() => import('@/pages/public/DynamicPage'));
 const AuthPage = lazy(() => import('@/pages/public/AuthPage'));
 const UserDashboard = lazy(() => import('@/pages/public/UserDashboard'));
+const ResetPasswordPage = lazy(() => import('@/pages/public/ResetPasswordPage'));
 
 const AdminLayout = lazy(() => import('@/components/admin/AdminLayout'));
 const AdminLogin = lazy(() => import('@/pages/admin/AdminLogin'));
@@ -49,6 +50,7 @@ function App() {
           <Route path="/properties/:id" element={<PropertyDetailPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/page/:slug" element={<DynamicPage />} />
         </Route>

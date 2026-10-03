@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { Home, Mail, Lock, User, Phone, ArrowLeft, Check } from 'lucide-react';
+import { Home, Mail, Lock, User, Phone, ArrowLeft, Check, KeyRound } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 import { t } from '@/lib/i18n';
@@ -188,6 +188,13 @@ export default function AuthPage() {
               )}
             </button>
           </form>
+
+          <div className="text-center mt-4">
+            <Link to="/reset-password" className="inline-flex items-center gap-1 text-sm text-primary-600 dark:text-primary-400 font-medium hover:underline">
+              <KeyRound className="w-4 h-4" />
+              {t(lang, 'auth.forgotPassword')}
+            </Link>
+          </div>
 
           <div className="text-center mt-6">
             <button
