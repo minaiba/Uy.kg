@@ -107,9 +107,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    // Realtime: listen for changes to the current user's profile so can_publish/role updates propagate live
+    const profileChannel = supabase
+      .channel('user_profile_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_profiles' }, (payload) => {
+        if (!mounted) return;
+        const newRow = payload.new as any;
+        // Check against the current session user
+        supabase.auth.getSession().then(({ data: sess }) => {
+          if (sess.session?.user?.id === newRow.id) {
+            setRole(newRow.role || 'user');
+            setCanPublish(newRow.can_publish ?? false);
+            setIsBlocked(newRow.is_blocked ?? false);
+            if (newRow.is_blocked) {
+              supabase.auth.signOut();
+            }
+          }
+        });
+      })
+      .subscribe();
+
     return () => {
       mounted = false;
       authListener.subscription.unsubscribe();
+      profileChannel.unsubscribe();
     };
   }, [fetchProfile]);
 

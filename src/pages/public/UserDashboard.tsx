@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
-import { User, Mail, Phone, Save, Home, LogOut, Check, AlertCircle, Heart, MessageSquare, Calendar, Building2, Plus, Pencil, Trash2, Eye, EyeOff, FileText, Settings, Lock, KeyRound } from 'lucide-react';
+import { User, Mail, Phone, Save, Home, LogOut, Check, AlertCircle, Heart, MessageSquare, Building2, Plus, Pencil, Trash2, Eye, EyeOff, FileText, Settings, Lock, KeyRound, ArrowLeft, Send } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
-import { supabase, type Property } from '@/lib/supabase';
+import { supabase, type Property, type Message } from '@/lib/supabase';
 import { t, getTranslatedValue, formatPrice, type CurrencyCode } from '@/lib/i18n';
 
 type Tab = 'listings' | 'add' | 'drafts' | 'favorites' | 'messages' | 'profile';
@@ -22,6 +22,10 @@ export default function UserDashboard() {
   const [drafts, setDrafts] = useState<Property[]>([]);
   const [favorites, setFavorites] = useState<Property[]>([]);
   const [inquiries, setInquiries] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [activeConv, setActiveConv] = useState<any | null>(null);
+  const [convMessages, setConvMessages] = useState<Message[]>([]);
+  const [convInput, setConvInput] = useState('');
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
   const [pwSaving, setPwSaving] = useState(false);
   const [pwSaved, setPwSaved] = useState(false);
@@ -57,13 +61,49 @@ export default function UserDashboard() {
     setInquiries(data || []);
   }, [user]);
 
+  const loadConversations = useCallback(async () => {
+    if (!user) return;
+    // Get all messages involving this user, grouped by property + conversation partner
+    const { data } = await supabase
+      .from('messages')
+      .select('*, property:properties(id, title, main_image_url)')
+      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      .order('created_at', { ascending: false });
+    const msgs = (data as any[]) || [];
+    // Group by property_id + partner_id to form conversations
+    const convMap = new Map<string, any>();
+    for (const m of msgs) {
+      const partnerId = m.sender_id === user.id ? m.receiver_id : m.sender_id;
+      const key = `${m.property_id}_${partnerId}`;
+      if (!convMap.has(key)) {
+        convMap.set(key, {
+          key,
+          property_id: m.property_id,
+          partner_id: partnerId,
+          property: m.property,
+          last_message: m.body,
+          last_at: m.created_at,
+          unread_count: 0,
+          messages: [] as Message[],
+        });
+      }
+      const conv = convMap.get(key);
+      conv.messages.push(m as Message);
+      if (m.receiver_id === user.id && !m.read_at) {
+        conv.unread_count++;
+      }
+    }
+    setConversations(Array.from(convMap.values()));
+  }, [user]);
+
   useEffect(() => {
     loadProfile();
     loadListings();
     loadDrafts();
     loadFavorites();
     loadInquiries();
-  }, [loadProfile, loadListings, loadDrafts, loadFavorites, loadInquiries]);
+    loadConversations();
+  }, [loadProfile, loadListings, loadDrafts, loadFavorites, loadInquiries, loadConversations]);
 
   if (loading) {
     return (
@@ -128,6 +168,32 @@ export default function UserDashboard() {
     if (!user) return;
     await supabase.from('favorites').delete().eq('user_id', user.id).eq('property_id', propertyId);
     loadFavorites();
+  };
+
+  const openConversation = async (conv: any) => {
+    setActiveConv(conv);
+    setConvMessages(conv.messages.sort((a: Message, b: Message) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
+    // Mark unread messages as read
+    if (user) {
+      const unreadIds = conv.messages.filter((m: Message) => m.receiver_id === user.id && !m.read_at).map((m: Message) => m.id);
+      if (unreadIds.length > 0) {
+        await supabase.from('messages').update({ read_at: new Date().toISOString() }).in('id', unreadIds);
+        loadConversations();
+      }
+    }
+  };
+
+  const sendConvMessage = async () => {
+    if (!user || !convInput.trim() || !activeConv) return;
+    const { data } = await supabase
+      .from('messages')
+      .insert({ property_id: activeConv.property_id, sender_id: user.id, receiver_id: activeConv.partner_id, body: convInput.trim() })
+      .select('*')
+      .single();
+    if (data) {
+      setConvMessages((prev) => [...prev, data as Message]);
+      setConvInput('');
+    }
   };
 
   const inputClass = "w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all";
@@ -344,37 +410,92 @@ export default function UserDashboard() {
 
         {/* Messages */}
         {tab === 'messages' && (
-          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm">
-            <h2 className="font-display text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-primary-600" />
-              {lang === 'ru' ? 'Мои заявки' : lang === 'en' ? 'My inquiries' : 'Менин арыздарым'}
-            </h2>
-            {inquiries.length === 0 ? (
-              <div className="text-center py-8">
-                <MessageSquare className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-                <p className="text-gray-400 text-sm">{lang === 'ru' ? 'Заявок нет' : lang === 'en' ? 'No inquiries' : 'Арыздалар жок'}</p>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+            {activeConv ? (
+              <div className="flex flex-col h-[500px]">
+                <div className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-800">
+                  <button onClick={() => { setActiveConv(null); loadConversations(); }} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                  {activeConv.property?.main_image_url ? (
+                    <img src={activeConv.property.main_image_url} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                      <Home className="w-5 h-5 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {activeConv.property?.title ? (activeConv.property.title[lang] || activeConv.property.title.ru || '') : '—'}
+                    </div>
+                    <Link to={`/properties/${activeConv.property_id}`} className="text-xs text-primary-600 hover:underline">
+                      {lang === 'ru' ? 'Открыть объявление' : lang === 'en' ? 'View property' : 'Жарнаманы көрүү'}
+                    </Link>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {convMessages.map((msg) => (
+                    <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${msg.sender_id === user?.id ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'}`}>
+                        {msg.body}
+                        <div className={`text-xs mt-1 ${msg.sender_id === user?.id ? 'text-primary-100' : 'text-gray-400'}`}>
+                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex gap-2">
+                  <input
+                    type="text"
+                    value={convInput}
+                    onChange={(e) => setConvInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendConvMessage(); } }}
+                    placeholder={lang === 'ru' ? 'Сообщение...' : lang === 'en' ? 'Message...' : 'Билдирүү...'}
+                    className="flex-1 px-4 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                  />
+                  <button onClick={sendConvMessage} disabled={!convInput.trim()} className="px-4 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm transition-colors disabled:opacity-50 flex items-center gap-2">
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ) : conversations.length === 0 ? (
+              <div className="text-center py-16">
+                <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p className="text-gray-400 text-sm mb-2">{lang === 'ru' ? 'Нет сообщений' : lang === 'en' ? 'No messages' : 'Билдирүүлөр жок'}</p>
+                <p className="text-gray-400 text-xs max-w-sm mx-auto">{lang === 'ru' ? 'Откройте объявление и нажмите «Написать сообщение», чтобы начать чат с владельцем.' : lang === 'en' ? 'Open a property and click "Write message" to start a chat with the owner.' : 'Жарнаманы ачып, «Билдирүү жазуу» баскычын басыңыз.'}</p>
+                <Link to="/properties" className="inline-flex items-center gap-1 text-sm text-primary-600 dark:text-primary-400 font-medium hover:underline mt-3">
+                  {t(lang, 'nav.properties')}
+                </Link>
               </div>
             ) : (
-              <div className="space-y-3">
-                {inquiries.map((inq) => (
-                  <div key={inq.id} className="flex items-center gap-4 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
-                    {inq.property?.main_image_url ? (
-                      <img src={inq.property.main_image_url} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {conversations.map((conv) => (
+                  <button
+                    key={conv.key}
+                    onClick={() => openConversation(conv)}
+                    className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-left"
+                  >
+                    {conv.property?.main_image_url ? (
+                      <img src={conv.property.main_image_url} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
                     ) : (
-                      <div className="w-14 h-14 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+                      <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
                         <Home className="w-6 h-6 text-gray-400" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {inq.property?.title ? (inq.property.title[lang] || inq.property.title.ru || '') : '—'}
+                        {conv.property?.title ? (conv.property.title[lang] || conv.property.title.ru || '') : '—'}
                       </div>
-                      <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                        <Calendar className="w-3 h-3" />
-                        {new Date(inq.created_at).toLocaleDateString()}
-                      </div>
+                      <div className="text-xs text-gray-500 truncate mt-0.5">{conv.last_message}</div>
                     </div>
-                  </div>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <span className="text-xs text-gray-400">{new Date(conv.last_at).toLocaleDateString()}</span>
+                      {conv.unread_count > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-primary-600 text-white">{conv.unread_count}</span>
+                      )}
+                    </div>
+                  </button>
                 ))}
               </div>
             )}

@@ -147,6 +147,16 @@ export type PropertyInquiry = {
   created_at: string;
 };
 
+export type Message = {
+  id: string;
+  property_id: string;
+  sender_id: string;
+  receiver_id: string;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+};
+
 export type HeroSlide = {
   id: string;
   title: Record<string, string>;

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bed, Bath, Maximize, MapPin, Calendar, Building, Layers, Phone, Mail, MessageCircle, Check, Home, Share2, Lock, Eye } from 'lucide-react';
+import { ArrowLeft, Bed, Bath, Maximize, MapPin, Calendar, Building, Layers, Phone, Mail, MessageCircle, Check, Home, Share2, Lock, Eye, Heart, Send } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { supabase, type Property, type PropertyImage, type PropertyPrivate } from '@/lib/supabase';
+import { supabase, type Property, type PropertyImage, type PropertyPrivate, type Message } from '@/lib/supabase';
 import { t, getTranslatedValue, formatPrice, type CurrencyCode } from '@/lib/i18n';
 import { get2gisSearchLink, get2gisCoordLink, buildAddressQuery } from '@/lib/2gis';
 import PropertyCard from '@/components/public/PropertyCard';
@@ -23,6 +23,10 @@ export default function PropertyDetailPage() {
   const [inquiryForm, setInquiryForm] = useState({ name: '', phone: '', email: '', message: '' });
   const [inquirySent, setInquirySent] = useState(false);
   const [privateData, setPrivateData] = useState<PropertyPrivate | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
+  const [chatInput, setChatInput] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -39,6 +43,9 @@ export default function PropertyDetailPage() {
       if (user) {
         const { data: priv } = await supabase.from('property_private').select('*').eq('property_id', id).maybeSingle();
         if (priv) setPrivateData(priv as PropertyPrivate);
+        // Check if in favorites
+        const { data: fav } = await supabase.from('favorites').select('id').eq('user_id', user.id).eq('property_id', id).maybeSingle();
+        setIsFavorite(!!fav);
       }
 
       if (prop) {
@@ -70,6 +77,48 @@ export default function PropertyDetailPage() {
     setInquirySent(true);
     setInquiryForm({ name: '', phone: '', email: '', message: '' });
     setTimeout(() => { setInquirySent(false); setShowInquiry(false); }, 3000);
+  };
+
+  const toggleFavorite = async () => {
+    if (!user || !id) return;
+    if (isFavorite) {
+      await supabase.from('favorites').delete().eq('user_id', user.id).eq('property_id', id);
+      setIsFavorite(false);
+    } else {
+      await supabase.from('favorites').insert({ user_id: user.id, property_id: id });
+      setIsFavorite(true);
+    }
+  };
+
+  const loadChatMessages = async () => {
+    if (!user || !id) return;
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('property_id', id)
+      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      .order('created_at', { ascending: true });
+    setChatMessages((data as Message[]) || []);
+  };
+
+  const openChat = async () => {
+    if (!user) return;
+    if (isAuthor) return;
+    setShowChat(true);
+    await loadChatMessages();
+  };
+
+  const sendChatMessage = async () => {
+    if (!user || !chatInput.trim() || !property || !property.created_by) return;
+    const { data } = await supabase
+      .from('messages')
+      .insert({ property_id: id, sender_id: user.id, receiver_id: property.created_by, body: chatInput.trim() })
+      .select('*')
+      .single();
+    if (data) {
+      setChatMessages((prev) => [...prev, data as Message]);
+      setChatInput('');
+    }
   };
 
   if (loading) {
@@ -347,6 +396,24 @@ export default function PropertyDetailPage() {
                       <Phone className="w-4 h-4" />
                       {t(lang, 'property.contact')}
                     </button>
+                    {user && !isAuthor && (
+                      <button
+                        onClick={openChat}
+                        className="w-full py-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        {lang === 'ru' ? 'Написать сообщение' : lang === 'en' ? 'Write message' : 'Билдирүү жазуу'}
+                      </button>
+                    )}
+                    {user && !isAuthor && (
+                      <button
+                        onClick={toggleFavorite}
+                        className={`w-full py-3 rounded-lg font-semibold text-sm transition-colors flex items-center justify-center gap-2 ${isFavorite ? 'bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white'}`}
+                      >
+                        <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+                        {isFavorite ? (lang === 'ru' ? 'В избранном' : lang === 'en' ? 'In favorites' : 'Тандалмада') : (lang === 'ru' ? 'В избранное' : lang === 'en' ? 'Add to favorites' : 'Тандалмага')}
+                      </button>
+                    )}
                     {settings?.phone && (
                       <a href={`tel:${settings.phone}`} className="w-full py-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2">
                         <Phone className="w-4 h-4" />
@@ -432,6 +499,55 @@ export default function PropertyDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Chat modal */}
+      {showChat && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowChat(false)}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-lg w-full border border-gray-200 dark:border-gray-800 shadow-2xl flex flex-col max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+              <h3 className="font-display text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <MessageCircle className="w-5 h-5 text-primary-600" />
+                {lang === 'ru' ? 'Чат с владельцем' : lang === 'en' ? 'Chat with owner' : 'Ээси менен чат'}
+              </h3>
+              <button onClick={() => setShowChat(false)} className="p-1 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+                <ArrowLeft className="w-5 h-5 rotate-45" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[200px]">
+              {chatMessages.length === 0 ? (
+                <div className="text-center py-8">
+                  <MessageCircle className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                  <p className="text-gray-400 text-sm">{lang === 'ru' ? 'Нет сообщений. Напишите первым!' : lang === 'en' ? 'No messages yet. Write first!' : 'Билдирүүлөр жок. Биринчи жазыңыз!'}</p>
+                </div>
+              ) : (
+                chatMessages.map((msg) => (
+                  <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${msg.sender_id === user?.id ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'}`}>
+                      {msg.body}
+                      <div className={`text-xs mt-1 ${msg.sender_id === user?.id ? 'text-primary-100' : 'text-gray-400'}`}>
+                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex gap-2">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } }}
+                placeholder={lang === 'ru' ? 'Сообщение...' : lang === 'en' ? 'Message...' : 'Билдирүү...'}
+                className="flex-1 px-4 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+              />
+              <button onClick={sendChatMessage} disabled={!chatInput.trim()} className="px-4 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm transition-colors disabled:opacity-50 flex items-center gap-2">
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
