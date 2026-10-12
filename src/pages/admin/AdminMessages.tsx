@@ -14,24 +14,37 @@ export default function AdminMessages() {
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const [adminId, setAdminId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setAdminId(data.session?.user?.id ?? null);
+    });
+  }, []);
+
   const load = useCallback(async () => {
+    if (!adminId) { setLoading(false); return; }
     setLoading(true);
+    // Only messages where the admin is sender or receiver — NOT all user conversations
     const { data } = await supabase
       .from('messages')
       .select('*, property:properties(id, title, main_image_url), sender:sender_id(full_name, email), receiver:receiver_id(full_name, email)')
+      .or(`sender_id.eq.${adminId},receiver_id.eq.${adminId}`)
       .order('created_at', { ascending: false });
     const msgs = (data as any[]) || [];
     const convMap = new Map<string, any>();
     for (const m of msgs) {
-      const key = `${m.property_id}_${m.sender_id}_${m.receiver_id}`;
+      const partnerId = m.sender_id === adminId ? m.receiver_id : m.sender_id;
+      const key = `${m.property_id}_${partnerId}`;
       if (!convMap.has(key)) {
-        const partner = m.sender?.full_name || m.sender?.email || m.receiver?.full_name || m.receiver?.email || 'Unknown';
+        const partner = m.sender_id === adminId
+          ? (m.receiver?.full_name || m.receiver?.email || 'Unknown')
+          : (m.sender?.full_name || m.sender?.email || 'Unknown');
         convMap.set(key, {
           key,
           property_id: m.property_id,
           property: m.property,
-          sender_id: m.sender_id,
-          receiver_id: m.receiver_id,
+          partner_id: partnerId,
           partner_name: partner,
           last_message: m.body,
           last_at: m.created_at,
@@ -42,7 +55,7 @@ export default function AdminMessages() {
     }
     setConversations(Array.from(convMap.values()));
     setLoading(false);
-  }, []);
+  }, [adminId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -58,10 +71,8 @@ export default function AdminMessages() {
     // Admin replies as the receiver of the original conversation (i.e. to the property owner)
     // Actually admin should reply to whoever messaged. We reply to the sender of the last incoming message.
     // The admin sends as themselves to the other party.
-    const { data: session } = await supabase.auth.getSession();
-    const adminId = session.session?.user?.id;
     if (!adminId) return;
-    const targetId = activeConv.sender_id === adminId ? activeConv.receiver_id : activeConv.sender_id;
+    const targetId = activeConv.partner_id;
     const { data } = await supabase
       .from('messages')
       .insert({ property_id: activeConv.property_id, sender_id: adminId, receiver_id: targetId, body: replyInput.trim() })
@@ -87,7 +98,7 @@ export default function AdminMessages() {
           {lang === 'ru' ? 'Сообщения' : lang === 'en' ? 'Messages' : 'Билдирүүлөр'}
         </h1>
         <p className="text-gray-500 text-sm">
-          {lang === 'ru' ? 'Все чаты пользователей' : lang === 'en' ? 'All user conversations' : 'Бардык колдонуучу чаттары'}
+          {lang === 'ru' ? 'Ваши чаты' : lang === 'en' ? 'Your chats' : 'Сиздин чаттарыңыз'}
         </p>
       </div>
 
@@ -169,7 +180,7 @@ export default function AdminMessages() {
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50/50 dark:bg-gray-950/30">
               {convMessages.map((msg) => {
-                const isAdmin = msg.sender_id === (activeConv.sender_id);
+                const isAdmin = msg.sender_id === adminId;
                 return (
                   <div key={msg.id} className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm ${isAdmin ? 'bg-primary-600 text-white rounded-br-md' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md shadow-sm border border-gray-100 dark:border-gray-700'}`}>

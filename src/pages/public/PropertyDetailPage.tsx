@@ -315,38 +315,38 @@ export default function PropertyDetailPage() {
                   {user && !isAuthor ? (
                     <button
                       onClick={openChat}
-                      className="w-full py-3.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2.5 shadow-lg shadow-primary-600/20"
+                      className="w-full py-3.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2.5 shadow-lg shadow-primary-600/20 whitespace-nowrap"
                     >
-                      <MessageCircle className="w-5 h-5" />
+                      <MessageCircle className="w-5 h-5 flex-shrink-0" />
                       {lang === 'ru' ? 'Написать продавцу' : lang === 'en' ? 'Message seller' : 'Сатуучуга жазуу'}
                     </button>
                   ) : !user ? (
-                    <Link to="/auth" className="w-full py-3.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2.5 shadow-lg shadow-primary-600/20">
-                      <MessageCircle className="w-5 h-5" />
+                    <Link to="/auth" className="w-full py-3.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2.5 shadow-lg shadow-primary-600/20 whitespace-nowrap">
+                      <MessageCircle className="w-5 h-5 flex-shrink-0" />
                       {lang === 'ru' ? 'Войти и написать' : lang === 'en' ? 'Sign in to message' : 'Кирип жазуу'}
                     </Link>
                   ) : null}
 
                   {/* 2. Call by phone */}
                   {settings?.phone && (
-                    <a href={`tel:${settings.phone}`} className="w-full py-3.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2.5">
-                      <Phone className="w-5 h-5" />
+                    <a href={`tel:${settings.phone}`} className="w-full py-3.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2.5 whitespace-nowrap">
+                      <Phone className="w-5 h-5 flex-shrink-0" />
                       {lang === 'ru' ? 'Позвонить' : lang === 'en' ? 'Call' : 'Чалуу'}
                     </a>
                   )}
 
                   {/* 3. WhatsApp */}
                   {settings?.whatsapp && (
-                    <a href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noopener noreferrer" className="w-full py-3.5 rounded-xl bg-green-500 hover:bg-green-600 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2.5">
-                      <MessageCircle className="w-5 h-5" />
+                    <a href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noopener noreferrer" className="w-full py-3.5 rounded-xl bg-green-500 hover:bg-green-600 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2.5 whitespace-nowrap">
+                      <MessageCircle className="w-5 h-5 flex-shrink-0" />
                       WhatsApp
                     </a>
                   )}
 
                   {/* 4. Telegram */}
                   {settings?.telegram && (
-                    <a href={`https://t.me/${settings.telegram}`} target="_blank" rel="noopener noreferrer" className="w-full py-3.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2.5">
-                      <MessageCircle className="w-5 h-5" />
+                    <a href={`https://t.me/${settings.telegram}`} target="_blank" rel="noopener noreferrer" className="w-full py-3.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2.5 whitespace-nowrap">
+                      <MessageCircle className="w-5 h-5 flex-shrink-0" />
                       Telegram
                     </a>
                   )}
@@ -355,9 +355,9 @@ export default function PropertyDetailPage() {
                   {user && !isAuthor && (
                     <button
                       onClick={toggleFavorite}
-                      className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2.5 border ${isFavorite ? 'bg-red-50 dark:bg-red-900/20 text-red-600 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                      className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2.5 whitespace-nowrap ${isFavorite ? 'bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
                     >
-                      <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+                      <Heart className={`w-5 h-5 flex-shrink-0 ${isFavorite ? 'fill-current' : ''}`} />
                       {isFavorite ? (lang === 'ru' ? 'В избранном' : lang === 'en' ? 'In favorites' : 'Тандалмада') : (lang === 'ru' ? 'В избранное' : lang === 'en' ? 'Add to favorites' : 'Тандалмага')}
                     </button>
                   )}
