@@ -19,9 +19,7 @@ export default function PropertyDetailPage() {
   const [similar, setSimilar] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
-  const [showInquiry, setShowInquiry] = useState(false);
-  const [inquiryForm, setInquiryForm] = useState({ name: '', phone: '', email: '', message: '' });
-  const [inquirySent, setInquirySent] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [privateData, setPrivateData] = useState<PropertyPrivate | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -62,22 +60,6 @@ export default function PropertyDetailPage() {
       setLoading(false);
     })();
   }, [id]);
-
-  const submitInquiry = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inquiryForm.name || !inquiryForm.phone) return;
-    await supabase.from('property_inquiries').insert({
-      property_id: id,
-      name: inquiryForm.name,
-      phone: inquiryForm.phone,
-      email: inquiryForm.email || null,
-      message: inquiryForm.message || null,
-      user_id: user?.id || null,
-    });
-    setInquirySent(true);
-    setInquiryForm({ name: '', phone: '', email: '', message: '' });
-    setTimeout(() => { setInquirySent(false); setShowInquiry(false); }, 3000);
-  };
 
   const toggleFavorite = async () => {
     if (!user || !id) return;
@@ -329,111 +311,58 @@ export default function PropertyDetailPage() {
               <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 shadow-md">
                 <h3 className="font-display text-xl font-bold text-gray-900 dark:text-white mb-4">{t(lang, 'property.contact')}</h3>
 
-                {showInquiry ? (
-                  inquirySent ? (
-                    <div className="text-center py-4">
-                      <div className="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center mx-auto mb-3">
-                        <Check className="w-6 h-6 text-primary-600" />
-                      </div>
-                      <p className="text-gray-700 dark:text-gray-300">{t(lang, 'contact.sent')}</p>
-                    </div>
-                  ) : !user ? (
-                    <div className="text-center py-4">
-                      <div className="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center mx-auto mb-3">
-                        <Lock className="w-6 h-6 text-primary-600" />
-                      </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{t(lang, 'auth.loginRequired')}</p>
-                      <Link to="/auth" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm transition-colors">
-                        {t(lang, 'auth.login')}
-                      </Link>
-                    </div>
-                  ) : (
-                    <form onSubmit={submitInquiry} className="space-y-3">
-                      <input
-                        type="text"
-                        required
-                        value={inquiryForm.name}
-                        onChange={(e) => setInquiryForm({ ...inquiryForm, name: e.target.value })}
-                        placeholder={t(lang, 'contact.name')}
-                        className="w-full px-4 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                      />
-                      <input
-                        type="text"
-                        required
-                        value={inquiryForm.phone}
-                        onChange={(e) => setInquiryForm({ ...inquiryForm, phone: e.target.value })}
-                        placeholder={t(lang, 'contact.phone')}
-                        className="w-full px-4 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                      />
-                      <input
-                        type="email"
-                        value={inquiryForm.email}
-                        onChange={(e) => setInquiryForm({ ...inquiryForm, email: e.target.value })}
-                        placeholder={t(lang, 'contact.email')}
-                        className="w-full px-4 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                      />
-                      <textarea
-                        value={inquiryForm.message}
-                        onChange={(e) => setInquiryForm({ ...inquiryForm, message: e.target.value })}
-                        placeholder={t(lang, 'contact.message')}
-                        rows={3}
-                        className="w-full px-4 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm resize-none"
-                      />
-                      <button type="submit" className="w-full py-3 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm transition-colors">
-                        {t(lang, 'contact.send')}
-                      </button>
-                      <button type="button" onClick={() => setShowInquiry(false)} className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-                        {t(lang, 'admin.cancel')}
-                      </button>
-                    </form>
-                  )
-                ) : (
-                  <div className="space-y-3">
+                <div className="space-y-3">
+                  {/* 1. Write message to owner (site chat) */}
+                  {user && !isAuthor ? (
                     <button
-                      onClick={() => setShowInquiry(true)}
-                      className="w-full py-3 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                      onClick={openChat}
+                      className="w-full py-3.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2.5 shadow-lg shadow-primary-600/20"
                     >
-                      <Phone className="w-4 h-4" />
-                      {t(lang, 'property.contact')}
+                      <MessageCircle className="w-5 h-5" />
+                      {lang === 'ru' ? 'Написать продавцу' : lang === 'en' ? 'Message seller' : 'Сатуучуга жазуу'}
                     </button>
-                    {user && !isAuthor && (
-                      <button
-                        onClick={openChat}
-                        className="w-full py-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                        {lang === 'ru' ? 'Написать сообщение' : lang === 'en' ? 'Write message' : 'Билдирүү жазуу'}
-                      </button>
-                    )}
-                    {user && !isAuthor && (
-                      <button
-                        onClick={toggleFavorite}
-                        className={`w-full py-3 rounded-lg font-semibold text-sm transition-colors flex items-center justify-center gap-2 ${isFavorite ? 'bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white'}`}
-                      >
-                        <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
-                        {isFavorite ? (lang === 'ru' ? 'В избранном' : lang === 'en' ? 'In favorites' : 'Тандалмада') : (lang === 'ru' ? 'В избранное' : lang === 'en' ? 'Add to favorites' : 'Тандалмага')}
-                      </button>
-                    )}
-                    {settings?.phone && (
-                      <a href={`tel:${settings.phone}`} className="w-full py-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2">
-                        <Phone className="w-4 h-4" />
-                        {settings.phone}
-                      </a>
-                    )}
-                    {settings?.whatsapp && (
-                      <a href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noopener noreferrer" className="w-full py-3 rounded-lg bg-green-500 hover:bg-green-600 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2">
-                        <MessageCircle className="w-4 h-4" />
-                        WhatsApp
-                      </a>
-                    )}
-                    {settings?.telegram && (
-                      <a href={`https://t.me/${settings.telegram}`} target="_blank" rel="noopener noreferrer" className="w-full py-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2">
-                        <MessageCircle className="w-4 h-4" />
-                        Telegram
-                      </a>
-                    )}
-                  </div>
-                )}
+                  ) : !user ? (
+                    <Link to="/auth" className="w-full py-3.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2.5 shadow-lg shadow-primary-600/20">
+                      <MessageCircle className="w-5 h-5" />
+                      {lang === 'ru' ? 'Войти и написать' : lang === 'en' ? 'Sign in to message' : 'Кирип жазуу'}
+                    </Link>
+                  ) : null}
+
+                  {/* 2. Call by phone */}
+                  {settings?.phone && (
+                    <a href={`tel:${settings.phone}`} className="w-full py-3.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2.5">
+                      <Phone className="w-5 h-5" />
+                      {lang === 'ru' ? 'Позвонить' : lang === 'en' ? 'Call' : 'Чалуу'}
+                    </a>
+                  )}
+
+                  {/* 3. WhatsApp */}
+                  {settings?.whatsapp && (
+                    <a href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noopener noreferrer" className="w-full py-3.5 rounded-xl bg-green-500 hover:bg-green-600 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2.5">
+                      <MessageCircle className="w-5 h-5" />
+                      WhatsApp
+                    </a>
+                  )}
+
+                  {/* 4. Telegram */}
+                  {settings?.telegram && (
+                    <a href={`https://t.me/${settings.telegram}`} target="_blank" rel="noopener noreferrer" className="w-full py-3.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2.5">
+                      <MessageCircle className="w-5 h-5" />
+                      Telegram
+                    </a>
+                  )}
+
+                  {/* Favorite toggle */}
+                  {user && !isAuthor && (
+                    <button
+                      onClick={toggleFavorite}
+                      className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2.5 border ${isFavorite ? 'bg-red-50 dark:bg-red-900/20 text-red-600 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                    >
+                      <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+                      {isFavorite ? (lang === 'ru' ? 'В избранном' : lang === 'en' ? 'In favorites' : 'Тандалмада') : (lang === 'ru' ? 'В избранное' : lang === 'en' ? 'Add to favorites' : 'Тандалмага')}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Private author-only fields */}

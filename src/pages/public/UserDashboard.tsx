@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
-import { User, Mail, Phone, Save, Home, LogOut, Check, AlertCircle, Heart, MessageSquare, Building2, Plus, Pencil, Trash2, Eye, EyeOff, FileText, Settings, Lock, KeyRound, ArrowLeft, Send } from 'lucide-react';
+import { User, Mail, Phone, Save, Home, LogOut, Check, AlertCircle, Heart, MessageSquare, Building2, Plus, Pencil, Trash2, Eye, EyeOff, FileText, Settings, Lock, KeyRound, ArrowLeft, Send, Search } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 import { supabase, type Property, type Message } from '@/lib/supabase';
@@ -11,6 +11,23 @@ type Tab = 'listings' | 'add' | 'drafts' | 'favorites' | 'messages' | 'profile';
 export default function UserDashboard() {
   const { lang, currency } = useApp();
   const { user, role, canPublish, loading, signOut } = useAuth();
+
+  // Fallback: re-fetch can_publish directly from DB in case realtime doesn't fire
+  const [localCanPublish, setLocalCanPublish] = useState(false);
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    const checkPublish = async () => {
+      const { data } = await supabase.from('user_profiles').select('can_publish, role').eq('id', user.id).maybeSingle();
+      if (active && data) {
+        setLocalCanPublish(data.can_publish ?? false);
+      }
+    };
+    checkPublish();
+    // Poll every 10 seconds as a safety net alongside realtime
+    const interval = setInterval(checkPublish, 10000);
+    return () => { active = false; clearInterval(interval); };
+  }, [user]);
   const navigate = useNavigate();
 
   const [tab, setTab] = useState<Tab>('favorites');
@@ -26,6 +43,8 @@ export default function UserDashboard() {
   const [activeConv, setActiveConv] = useState<any | null>(null);
   const [convMessages, setConvMessages] = useState<Message[]>([]);
   const [convInput, setConvInput] = useState('');
+  const [convSearch, setConvSearch] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
   const [pwSaving, setPwSaving] = useState(false);
   const [pwSaved, setPwSaved] = useState(false);
@@ -172,7 +191,8 @@ export default function UserDashboard() {
 
   const openConversation = async (conv: any) => {
     setActiveConv(conv);
-    setConvMessages(conv.messages.sort((a: Message, b: Message) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
+    const sorted = [...conv.messages].sort((a: Message, b: Message) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    setConvMessages(sorted);
     // Mark unread messages as read
     if (user) {
       const unreadIds = conv.messages.filter((m: Message) => m.receiver_id === user.id && !m.read_at).map((m: Message) => m.id);
@@ -181,6 +201,7 @@ export default function UserDashboard() {
         loadConversations();
       }
     }
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   };
 
   const sendConvMessage = async () => {
@@ -193,12 +214,13 @@ export default function UserDashboard() {
     if (data) {
       setConvMessages((prev) => [...prev, data as Message]);
       setConvInput('');
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     }
   };
 
   const inputClass = "w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all";
 
-  const hasPublishAccess = canPublish || role === 'admin';
+  const hasPublishAccess = canPublish || localCanPublish || role === 'admin';
 
   const tabs: { key: Tab; icon: any; label: string }[] = [
     ...(hasPublishAccess ? [
@@ -408,24 +430,87 @@ export default function UserDashboard() {
           </div>
         )}
 
-        {/* Messages */}
+        {/* Messages — Telegram-style two-panel layout */}
         {tab === 'messages' && (
-          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden flex h-[600px]">
+            {/* Left panel: conversation list */}
+            <div className={`${activeConv ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-80 border-r border-gray-200 dark:border-gray-800 flex-shrink-0`}>
+              <div className="p-3 border-b border-gray-200 dark:border-gray-800">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={convSearch}
+                    onChange={(e) => setConvSearch(e.target.value)}
+                    placeholder={lang === 'ru' ? 'Поиск чатов...' : lang === 'en' ? 'Search chats...' : 'Чат издөө...'}
+                    className="w-full pl-10 pr-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 border-0 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {conversations.length === 0 ? (
+                  <div className="text-center py-16 px-4">
+                    <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-gray-400 text-sm mb-2">{lang === 'ru' ? 'Нет чатов' : lang === 'en' ? 'No chats' : 'Чаттар жок'}</p>
+                    <p className="text-gray-400 text-xs">{lang === 'ru' ? 'Откройте объявление и нажмите «Написать сообщение»' : lang === 'en' ? 'Open a property and click "Write message"' : 'Жарнаманы ачып, «Билдирүү жазуу» басыңыз'}</p>
+                    <Link to="/properties" className="inline-flex items-center gap-1 text-sm text-primary-600 dark:text-primary-400 font-medium hover:underline mt-3">
+                      {t(lang, 'nav.properties')}
+                    </Link>
+                  </div>
+                ) : (
+                  conversations
+                    .filter((conv) => {
+                      if (!convSearch.trim()) return true;
+                      const title = conv.property?.title ? (conv.property.title[lang] || conv.property.title.ru || '') : '';
+                      return title.toLowerCase().includes(convSearch.toLowerCase()) || conv.last_message.toLowerCase().includes(convSearch.toLowerCase());
+                    })
+                    .map((conv) => (
+                    <button
+                      key={conv.key}
+                      onClick={() => openConversation(conv)}
+                      className={`w-full flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-left border-b border-gray-50 dark:border-gray-800/50 ${activeConv?.key === conv.key ? 'bg-primary-50 dark:bg-primary-900/10' : ''}`}
+                    >
+                      <div className="relative flex-shrink-0">
+                        {conv.property?.main_image_url ? (
+                          <img src={conv.property.main_image_url} alt="" className="w-12 h-12 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
+                            <Home className="w-6 h-6 text-white" />
+                          </div>
+                        )}
+                        {conv.unread_count > 0 && (
+                          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary-600 text-white text-xs font-bold flex items-center justify-center">{conv.unread_count}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {conv.property?.title ? (conv.property.title[lang] || conv.property.title.ru || '') : '—'}
+                        </div>
+                        <div className={`text-xs truncate mt-0.5 ${conv.unread_count > 0 ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-500'}`}>{conv.last_message}</div>
+                      </div>
+                      <span className="text-xs text-gray-400 flex-shrink-0">{new Date(conv.last_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Right panel: active conversation */}
             {activeConv ? (
-              <div className="flex flex-col h-[500px]">
-                <div className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-800">
-                  <button onClick={() => { setActiveConv(null); loadConversations(); }} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+              <div className="flex flex-col flex-1 min-w-0">
+                <div className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+                  <button onClick={() => { setActiveConv(null); loadConversations(); }} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 md:hidden">
                     <ArrowLeft className="w-5 h-5" />
                   </button>
                   {activeConv.property?.main_image_url ? (
-                    <img src={activeConv.property.main_image_url} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                    <img src={activeConv.property.main_image_url} alt="" className="w-10 h-10 rounded-full object-cover" />
                   ) : (
-                    <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                      <Home className="w-5 h-5 text-gray-400" />
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
+                      <Home className="w-5 h-5 text-white" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                       {activeConv.property?.title ? (activeConv.property.title[lang] || activeConv.property.title.ru || '') : '—'}
                     </div>
                     <Link to={`/properties/${activeConv.property_id}`} className="text-xs text-primary-600 hover:underline">
@@ -433,10 +518,10 @@ export default function UserDashboard() {
                     </Link>
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50/50 dark:bg-gray-950/30">
                   {convMessages.map((msg) => (
                     <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${msg.sender_id === user?.id ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'}`}>
+                      <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm ${msg.sender_id === user?.id ? 'bg-primary-600 text-white rounded-br-md' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md shadow-sm border border-gray-100 dark:border-gray-700'}`}>
                         {msg.body}
                         <div className={`text-xs mt-1 ${msg.sender_id === user?.id ? 'text-primary-100' : 'text-gray-400'}`}>
                           {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -444,59 +529,28 @@ export default function UserDashboard() {
                       </div>
                     </div>
                   ))}
+                  <div ref={messagesEndRef} />
                 </div>
-                <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex gap-2">
+                <div className="p-3 border-t border-gray-200 dark:border-gray-800 flex gap-2 bg-white dark:bg-gray-900">
                   <input
                     type="text"
                     value={convInput}
                     onChange={(e) => setConvInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendConvMessage(); } }}
-                    placeholder={lang === 'ru' ? 'Сообщение...' : lang === 'en' ? 'Message...' : 'Билдирүү...'}
-                    className="flex-1 px-4 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                    placeholder={lang === 'ru' ? 'Напишите сообщение...' : lang === 'en' ? 'Type a message...' : 'Билдирүү жазыңыз...'}
+                    className="flex-1 px-4 py-2.5 rounded-full bg-gray-100 dark:bg-gray-800 border-0 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                   />
-                  <button onClick={sendConvMessage} disabled={!convInput.trim()} className="px-4 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm transition-colors disabled:opacity-50 flex items-center gap-2">
+                  <button onClick={sendConvMessage} disabled={!convInput.trim()} className="w-10 h-10 rounded-full bg-primary-600 hover:bg-primary-700 text-white font-semibold transition-colors disabled:opacity-50 flex items-center justify-center flex-shrink-0">
                     <Send className="w-4 h-4" />
                   </button>
                 </div>
               </div>
-            ) : conversations.length === 0 ? (
-              <div className="text-center py-16">
-                <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p className="text-gray-400 text-sm mb-2">{lang === 'ru' ? 'Нет сообщений' : lang === 'en' ? 'No messages' : 'Билдирүүлөр жок'}</p>
-                <p className="text-gray-400 text-xs max-w-sm mx-auto">{lang === 'ru' ? 'Откройте объявление и нажмите «Написать сообщение», чтобы начать чат с владельцем.' : lang === 'en' ? 'Open a property and click "Write message" to start a chat with the owner.' : 'Жарнаманы ачып, «Билдирүү жазуу» баскычын басыңыз.'}</p>
-                <Link to="/properties" className="inline-flex items-center gap-1 text-sm text-primary-600 dark:text-primary-400 font-medium hover:underline mt-3">
-                  {t(lang, 'nav.properties')}
-                </Link>
-              </div>
             ) : (
-              <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                {conversations.map((conv) => (
-                  <button
-                    key={conv.key}
-                    onClick={() => openConversation(conv)}
-                    className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-left"
-                  >
-                    {conv.property?.main_image_url ? (
-                      <img src={conv.property.main_image_url} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
-                        <Home className="w-6 h-6 text-gray-400" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {conv.property?.title ? (conv.property.title[lang] || conv.property.title.ru || '') : '—'}
-                      </div>
-                      <div className="text-xs text-gray-500 truncate mt-0.5">{conv.last_message}</div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <span className="text-xs text-gray-400">{new Date(conv.last_at).toLocaleDateString()}</span>
-                      {conv.unread_count > 0 && (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-primary-600 text-white">{conv.unread_count}</span>
-                      )}
-                    </div>
-                  </button>
-                ))}
+              <div className="hidden md:flex flex-1 items-center justify-center bg-gray-50/50 dark:bg-gray-950/30">
+                <div className="text-center">
+                  <MessageSquare className="w-16 h-16 mx-auto mb-3 text-gray-200 dark:text-gray-700" />
+                  <p className="text-gray-400 text-sm">{lang === 'ru' ? 'Выберите чат слева' : lang === 'en' ? 'Select a chat on the left' : 'Солдон чатты тандаңыз'}</p>
+                </div>
               </div>
             )}
           </div>
