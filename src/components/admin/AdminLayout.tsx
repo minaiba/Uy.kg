@@ -1,7 +1,7 @@
 import { Navigate, NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
-import { LayoutDashboard, Building2, FileText, Settings, Send, Inbox, LogOut, Home, Sun, Moon, X, GalleryVerticalEnd, Users, ShieldCheck, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Building2, FileText, Settings, Send, Inbox, LogOut, Home, Sun, Moon, X, GalleryVerticalEnd, Users, ShieldCheck, BarChart3, MessageSquare } from 'lucide-react';
 import { t } from '@/lib/i18n';
 import { useState, useCallback } from 'react';
 
@@ -35,6 +35,7 @@ export default function AdminLayout() {
     { to: '/admin/hero-slides', icon: GalleryVerticalEnd, label: lang === 'ru' ? 'Баннер' : lang === 'en' ? 'Hero slides' : 'Баннер' },
     { to: '/admin/pages', icon: FileText, label: t(lang, 'admin.pages') },
     { to: '/admin/inquiries', icon: Inbox, label: t(lang, 'admin.inquiries') },
+    { to: '/admin/messages', icon: MessageSquare, label: lang === 'ru' ? 'Сообщения' : lang === 'en' ? 'Messages' : 'Билдирүүлөр' },
     { to: '/admin/telegram', icon: Send, label: t(lang, 'admin.telegram') },
     { to: '/admin/settings', icon: Settings, label: t(lang, 'admin.settings') },
   ];

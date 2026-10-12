@@ -38,7 +38,6 @@ export default function UserDashboard() {
   const [listings, setListings] = useState<Property[]>([]);
   const [drafts, setDrafts] = useState<Property[]>([]);
   const [favorites, setFavorites] = useState<Property[]>([]);
-  const [inquiries, setInquiries] = useState<any[]>([]);
   const [conversations, setConversations] = useState<any[]>([]);
   const [activeConv, setActiveConv] = useState<any | null>(null);
   const [convMessages, setConvMessages] = useState<Message[]>([]);
@@ -72,12 +71,6 @@ export default function UserDashboard() {
     const { data } = await supabase.from('favorites').select('property_id, properties(*)').eq('user_id', user.id).order('created_at', { ascending: false });
     const props = ((data as any) || []).map((f: any) => f.properties).filter(Boolean) as Property[];
     setFavorites(props);
-  }, [user]);
-
-  const loadInquiries = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase.from('property_inquiries').select('*, property:properties(title, main_image_url)').eq('email', user.email).order('created_at', { ascending: false }).limit(20);
-    setInquiries(data || []);
   }, [user]);
 
   const loadConversations = useCallback(async () => {
@@ -120,9 +113,8 @@ export default function UserDashboard() {
     loadListings();
     loadDrafts();
     loadFavorites();
-    loadInquiries();
     loadConversations();
-  }, [loadProfile, loadListings, loadDrafts, loadFavorites, loadInquiries, loadConversations]);
+  }, [loadProfile, loadListings, loadDrafts, loadFavorites, loadConversations]);
 
   if (loading) {
     return (

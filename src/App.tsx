@@ -26,6 +26,7 @@ const AdminTelegram = lazy(() => import('@/pages/admin/AdminTelegram'));
 const AdminInquiries = lazy(() => import('@/pages/admin/AdminInquiries'));
 const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'));
 const AdminModeration = lazy(() => import('@/pages/admin/AdminModeration'));
+const AdminMessages = lazy(() => import('@/pages/admin/AdminMessages'));
 
 function LoadingScreen() {
   return (
@@ -76,6 +77,7 @@ function App() {
           <Route path="telegram" element={<AdminTelegram />} />
           <Route path="inquiries" element={<AdminInquiries />} />
           <Route path="moderation" element={<AdminModeration />} />
+          <Route path="messages" element={<AdminMessages />} />
         </Route>
       </Routes>
     </Suspense>

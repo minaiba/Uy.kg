@@ -19,7 +19,6 @@ export default function PropertyDetailPage() {
   const [similar, setSimilar] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
-  const [showChat, setShowChat] = useState(false);
   const [privateData, setPrivateData] = useState<PropertyPrivate | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showChat, setShowChat] = useState(false);
